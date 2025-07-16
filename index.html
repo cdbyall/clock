@@ -19,14 +19,13 @@
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.5s ease, color 0.5s ease; }
         .card { background-color: var(--bg-secondary); border-radius: 1.5rem; box-shadow: 0 10px 25px -5px var(--shadow-color), 0 8px 10px -6px var(--shadow-color); transition: background-color 0.5s ease, box-shadow 0.5s ease; }
-        .btn { border-radius: 0.75rem; transition: transform 0.2s ease, background-color 0.3s ease; }
+        .btn { border-radius: 0.75rem; transition: transform 0.2s ease, background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease; }
         .btn:active { transform: scale(0.95); }
-        .btn-primary { background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: white; }
-        .btn-secondary { background-color: var(--bg-secondary); border: 1px solid var(--accent-primary); color: var(--accent-primary); }
-        .btn-danger { background-color: #E74C3C; color: white; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: white; border-color: transparent; }
+        .btn-secondary { background-color: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary); }
+        .btn-danger { background-color: #E74C3C; color: white; border-color: transparent; }
         .input-field { background-color: var(--bg-primary); border: 1px solid transparent; border-radius: 0.75rem; transition: background-color 0.3s ease, border-color 0.3s ease; padding: 0.5rem 0.75rem; cursor: ns-resize; }
         .input-field:focus { outline: none; border-color: var(--accent-primary); background-color: var(--bg-secondary); }
-        .toggle-bg:checked { background-color: var(--accent-primary); }
         .animated-gradient { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
         @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         #particle-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
@@ -91,11 +90,11 @@
                     <div id="time-display-area" class="space-y-4">
                         <div class="flex justify-between items-center">
                             <span class="font-medium">Time In:</span>
-                            <span id="display-time-in" class="font-bold text-lg">--:--</span>
+                            <span id="display-time-in" class="px-3 py-1 rounded-full text-sm font-bold text-white" style="background-color: var(--accent-primary);">--:--</span>
                         </div>
                         <div class="flex justify-between items-center">
                             <span class="font-medium">Time Out:</span>
-                            <span id="display-time-out" class="font-bold text-lg">--:--</span>
+                            <span id="display-time-out" class="px-3 py-1 rounded-full text-sm font-bold text-white" style="background-color: var(--accent-secondary);">--:--</span>
                         </div>
                         <div class="flex justify-between items-center">
                             <span class="font-medium">Type:</span>
@@ -108,7 +107,7 @@
                         <hr class="my-4 border-dashed">
                         <div class="flex justify-between items-center">
                             <span class="font-bold text-lg">Total for Day:</span>
-                            <span id="display-day-total" class="font-bold text-xl text-primary" style="color: var(--accent-primary);">0.00h</span>
+                            <span id="display-day-total" class="font-bold text-xl" style="color: var(--accent-primary);">0.00h</span>
                         </div>
                     </div>
                      <p id="no-hours-message" class="text-center text-secondary py-8 hidden">No hours logged for this day.</p>
@@ -124,7 +123,7 @@
                 <button id="close-entry-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
             </div>
             <p id="modal-selected-date" class="text-sm text-secondary mb-6"></p>
-            <div class="space-y-4">
+            <div class="space-y-6">
                 <div>
                     <label class="text-sm font-medium">Time In</label>
                     <input id="time-in" type="time" class="input-field w-full mt-1" step="900">
@@ -133,20 +132,21 @@
                     <label class="text-sm font-medium">Time Out</label>
                     <input id="time-out" type="time" class="input-field w-full mt-1" step="900">
                 </div>
-                <div class="flex items-center justify-between pt-2">
-                    <span class="text-sm font-medium">Type</span>
-                    <div class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="hour-type-toggle" class="sr-only peer">
-                        <div class="w-24 h-8 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-14 after:transition-all dark:border-gray-600 toggle-bg"></div>
-                        <span class="absolute text-xs font-semibold text-white left-3 top-1/2 -translate-y-1/2">CORE</span>
-                        <span class="absolute text-xs font-semibold text-white right-3 top-1/2 -translate-y-1/2">ACAP</span>
+                
+                <div>
+                    <label class="text-sm font-medium mb-2 block">Type</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button data-type="CORE" class="hour-type-btn btn font-semibold py-2">CORE</button>
+                        <button data-type="ACAP" class="hour-type-btn btn font-semibold py-2">ACAP</button>
                     </div>
                 </div>
+                
                 <div>
                     <label class="text-sm font-medium">Additional Hours (optional)</label>
                     <input id="additional-hours" type="number" step="0.01" placeholder="e.g., 1.5" class="input-field w-full mt-1">
                 </div>
-                <button id="save-btn" class="btn btn-primary w-full py-3 font-bold">Save Hours</button>
+
+                <button id="save-btn" class="btn btn-primary w-full py-3 font-bold !mt-8">Save Hours</button>
             </div>
         </div>
     </div>
@@ -204,7 +204,7 @@
             const modalSelectedDate = document.getElementById('modal-selected-date');
             const timeInInput = document.getElementById('time-in');
             const timeOutInput = document.getElementById('time-out');
-            const hourTypeToggle = document.getElementById('hour-type-toggle');
+            const hourTypeButtons = document.querySelectorAll('.hour-type-btn');
             const additionalHoursInput = document.getElementById('additional-hours');
             const saveBtn = document.getElementById('save-btn');
             const settingsBtn = document.getElementById('settings-btn');
@@ -227,6 +227,7 @@
             let selectedDate = null;
             let timeData = {};
             let settings = { theme: 'default', background: 'none', sound: 'default', payPeriod: 14 };
+            let modalHourType = 'CORE';
             let onConfirmCallback = null;
             let notificationTimeout;
             
@@ -243,10 +244,7 @@
                 try {
                     await Tone.start();
                     if (!synth) {
-                        synth = new Tone.Synth({ 
-                            oscillator: { type: 'sine' }, 
-                            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 } 
-                        }).toDestination();
+                        synth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 } }).toDestination();
                     }
                     synth.triggerAttackRelease(soundPacks[settings.sound][type], '8n');
                 } catch (e) {
@@ -259,10 +257,7 @@
                 try {
                     await Tone.start();
                     if (!synth) {
-                        synth = new Tone.Synth({ 
-                            oscillator: { type: 'sine' }, 
-                            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 } 
-                        }).toDestination();
+                        synth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 } }).toDestination();
                     }
                     const notes = soundPacks[settings.sound].submit;
                     const now = Tone.now();
@@ -304,7 +299,7 @@
                     dayEl.textContent = day;
                     dayEl.className = 'p-2 rounded-full transition-all duration-200 w-10 h-10 mx-auto flex items-center justify-center';
                     if (timeData[dateStr] && calculateHours(dateStr) > 0) { dayEl.classList.add('font-bold'); dayEl.style.backgroundColor = 'var(--accent-secondary)'; dayEl.style.color = 'white'; }
-                    if (selectedDate === dateStr) { dayEl.classList.add('ring-2'); dayEl.style.borderColor = 'var(--accent-primary)'; }
+                    if (selectedDate === dateStr) { dayEl.classList.add('ring-2', 'ring-offset-2'); dayEl.style.borderColor = 'var(--accent-primary)'; }
                     const today = new Date();
                     if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) { dayEl.classList.add('font-extrabold'); }
                     dayEl.addEventListener('click', () => openTimeEntryModal(dateStr));
@@ -344,20 +339,32 @@
                     noHoursMessage.classList.remove('hidden');
                 }
             }
+            function updateHourTypeSelectionUI() {
+                hourTypeButtons.forEach(btn => {
+                    if (btn.dataset.type === modalHourType) {
+                        btn.classList.add('btn-primary');
+                        btn.classList.remove('btn-secondary');
+                    } else {
+                        btn.classList.add('btn-secondary');
+                        btn.classList.remove('btn-primary');
+                    }
+                });
+            }
             function loadEntryForModal(dateStr) {
                 const entry = timeData[dateStr];
                 const dateObj = new Date(`${dateStr}T00:00:00`);
                 modalSelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 timeInInput.value = entry?.in || '';
                 timeOutInput.value = entry?.out || '';
-                hourTypeToggle.checked = entry?.type === 'ACAP';
                 additionalHoursInput.value = entry?.additional || '';
+                modalHourType = entry?.type || 'CORE';
+                updateHourTypeSelectionUI();
             }
             function saveEntry() {
                 if (!selectedDate) return;
                 playSubmitJingle();
                 showNotification('Hours saved!');
-                timeData[selectedDate] = { in: timeInInput.value, out: timeOutInput.value, type: hourTypeToggle.checked ? 'ACAP' : 'CORE', additional: parseFloat(additionalHoursInput.value) || 0 };
+                timeData[selectedDate] = { in: timeInInput.value, out: timeOutInput.value, type: modalHourType, additional: parseFloat(additionalHoursInput.value) || 0 };
                 saveData();
                 renderCalendar();
                 updateSummaries();
@@ -371,15 +378,12 @@
                 if (entry.in && entry.out) { const timeIn = new Date(`${dateStr}T${entry.in}`); const timeOut = new Date(`${dateStr}T${entry.out}`); if (timeOut > timeIn) duration = (timeOut - timeIn) / 3600000; }
                 return duration + (entry.additional || 0);
             }
-            // THIS FUNCTION IS NOW FIXED
             function updateSummaries() {
                 const today = new Date();
                 const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
                 summaryToday.textContent = `${calculateHours(todayStr).toFixed(2)}h`;
-                
                 const totalHours = Object.keys(timeData).reduce((acc, date) => acc + calculateHours(date), 0);
                 summaryTotal.textContent = `${totalHours.toFixed(2)}h`;
-                
                 let periodHours = 0;
                 for (let i = 0; i < settings.payPeriod; i++) {
                     const date = new Date();
@@ -413,6 +417,14 @@
             soundSelect.addEventListener('change', e => { settings.sound = e.target.value; saveSettings(); playSound('click'); });
             payPeriodSelect.addEventListener('change', e => { settings.payPeriod = parseInt(e.target.value, 10); saveSettings(); updateSummaries(); playSound('click'); });
             clearDataBtn.addEventListener('click', clearAllData);
+            hourTypeButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    modalHourType = button.dataset.type;
+                    updateHourTypeSelectionUI();
+                    playSound('click');
+                });
+            });
             
             // --- INITIALIZATION ---
             function init() {
@@ -425,15 +437,12 @@
                 applyBackground(settings.background);
                 soundSelect.value = settings.sound;
                 payPeriodSelect.value = settings.payPeriod;
-
                 const today = new Date();
                 const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
                 selectedDate = todayStr;
-
                 renderCalendar();
                 updateDisplayPanel(selectedDate);
                 updateSummaries();
-
                 setupTimeInputListeners(timeInInput);
                 setupTimeInputListeners(timeOutInput);
             }
