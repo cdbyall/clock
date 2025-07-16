@@ -37,6 +37,7 @@
         .modal-backdrop.active .modal-content { transform: scale(1); opacity: 1; }
         #notification-toast { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 100; opacity: 0; transform: translateY(2rem); transition: opacity 0.3s ease, transform 0.3s ease; }
         #notification-toast.show { opacity: 1; transform: translateY(0); }
+        #timesheet-output { font-family: 'Courier New', Courier, monospace; white-space: pre; background-color: var(--bg-primary); }
     </style>
 </head>
 <body class="antialiased">
@@ -82,6 +83,9 @@
                             </div>
                         </div>
                     </div>
+                    <div class="flex justify-center">
+                         <button id="turn-in-hours-btn" class="btn btn-primary font-bold py-3 px-8 text-lg">Turn In Hours</button>
+                    </div>
                 </div>
 
                 <div class="card p-6 h-fit">
@@ -124,28 +128,10 @@
             </div>
             <p id="modal-selected-date" class="text-sm text-secondary mb-6"></p>
             <div class="space-y-6">
-                <div>
-                    <label class="text-sm font-medium">Time In</label>
-                    <input id="time-in" type="time" class="input-field w-full mt-1" step="900">
-                </div>
-                <div>
-                    <label class="text-sm font-medium">Time Out</label>
-                    <input id="time-out" type="time" class="input-field w-full mt-1" step="900">
-                </div>
-                
-                <div>
-                    <label class="text-sm font-medium mb-2 block">Type</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button data-type="CORE" class="hour-type-btn btn font-semibold py-2">CORE</button>
-                        <button data-type="ACAP" class="hour-type-btn btn font-semibold py-2">ACAP</button>
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="text-sm font-medium">Additional Hours (optional)</label>
-                    <input id="additional-hours" type="number" step="0.01" placeholder="e.g., 1.5" class="input-field w-full mt-1">
-                </div>
-
+                <div> <label class="text-sm font-medium">Time In</label> <input id="time-in" type="time" class="input-field w-full mt-1" step="900"> </div>
+                <div> <label class="text-sm font-medium">Time Out</label> <input id="time-out" type="time" class="input-field w-full mt-1" step="900"> </div>
+                <div> <label class="text-sm font-medium mb-2 block">Type</label> <div class="grid grid-cols-2 gap-2"> <button data-type="CORE" class="hour-type-btn btn font-semibold py-2">CORE</button> <button data-type="ACAP" class="hour-type-btn btn font-semibold py-2">ACAP</button> </div> </div>
+                <div> <label class="text-sm font-medium">Additional Hours (optional)</label> <input id="additional-hours" type="number" step="0.01" placeholder="e.g., 1.5" class="input-field w-full mt-1"> </div>
                 <button id="save-btn" class="btn btn-primary w-full py-3 font-bold !mt-8">Save Hours</button>
             </div>
         </div>
@@ -153,10 +139,7 @@
 
     <div id="settings-modal" class="modal-backdrop">
         <div class="modal-content card w-full max-w-md m-4 max-h-[90vh] overflow-y-auto p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">Settings</h2>
-                <button id="close-settings-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
-            </div>
+            <div class="flex justify-between items-center mb-6"> <h2 class="text-2xl font-bold">Settings</h2> <button id="close-settings-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button> </div>
             <div class="space-y-6">
                  <div><label for="theme-select" class="block text-sm font-medium mb-1">Color Theme</label><select id="theme-select" class="input-field w-full"></select></div>
                 <div><label for="background-select" class="block text-sm font-medium mb-1">Animated Background</label><select id="background-select" class="input-field w-full"><option value="none">None</option><option value="gradient">Animated Gradient</option><option value="particles">Floating Particles</option></select></div>
@@ -170,16 +153,24 @@
     <div id="confirm-modal" class="modal-backdrop">
         <div class="modal-content card w-full max-w-sm m-4 p-6 text-center">
             <h3 id="confirm-message" class="text-lg font-medium mb-6">Are you sure?</h3>
-            <div class="flex justify-center gap-4">
-                <button id="confirm-cancel-btn" class="btn btn-secondary w-full py-2">Cancel</button>
-                <button id="confirm-ok-btn" class="btn btn-danger w-full py-2">Confirm</button>
+            <div class="flex justify-center gap-4"> <button id="confirm-cancel-btn" class="btn btn-secondary w-full py-2">Cancel</button> <button id="confirm-ok-btn" class="btn btn-danger w-full py-2">Confirm</button> </div>
+        </div>
+    </div>
+
+    <div id="timesheet-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-lg m-4 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Generated Timesheet</h3>
+                <button id="close-timesheet-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+            </div>
+            <textarea id="timesheet-output" readonly class="w-full h-64 p-2 border rounded-lg input-field resize-none"></textarea>
+            <div class="flex gap-4 mt-4">
+                <button id="copy-timesheet-btn" class="btn btn-primary w-full py-2">Copy Timesheet</button>
             </div>
         </div>
     </div>
 
-    <div id="notification-toast" class="card py-3 px-5">
-        <p id="notification-message"></p>
-    </div>
+    <div id="notification-toast" class="card py-3 px-5"> <p id="notification-message"></p> </div>
 
     <script>
         window.onload = function() {
@@ -221,6 +212,11 @@
             const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
             const notificationToast = document.getElementById('notification-toast');
             const notificationMessage = document.getElementById('notification-message');
+            const turnInHoursBtn = document.getElementById('turn-in-hours-btn');
+            const timesheetModal = document.getElementById('timesheet-modal');
+            const closeTimesheetModalBtn = document.getElementById('close-timesheet-modal-btn');
+            const timesheetOutput = document.getElementById('timesheet-output');
+            const copyTimesheetBtn = document.getElementById('copy-timesheet-btn');
 
             // --- STATE MANAGEMENT ---
             let currentDate = new Date();
@@ -341,13 +337,8 @@
             }
             function updateHourTypeSelectionUI() {
                 hourTypeButtons.forEach(btn => {
-                    if (btn.dataset.type === modalHourType) {
-                        btn.classList.add('btn-primary');
-                        btn.classList.remove('btn-secondary');
-                    } else {
-                        btn.classList.add('btn-secondary');
-                        btn.classList.remove('btn-primary');
-                    }
+                    if (btn.dataset.type === modalHourType) { btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary'); } 
+                    else { btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary'); }
                 });
             }
             function loadEntryForModal(dateStr) {
@@ -394,7 +385,66 @@
                 summaryPayPeriod.textContent = `${periodHours.toFixed(2)}h`;
             }
             
-            // --- MODALS, NOTIFICATIONS, STORAGE ---
+            // --- MODALS, NOTIFICATIONS, STORAGE, & TIMESHEET ---
+            function getDayWithSuffix(d) {
+                const day = d.getDate();
+                if (day > 3 && day < 21) return day + 'th';
+                switch (day % 10) {
+                    case 1: return day + "st";
+                    case 2: return day + "nd";
+                    case 3: return day + "rd";
+                    default: return day + "th";
+                }
+            }
+
+            function generateAndShowTimesheet() {
+                const today = new Date();
+                const periodStartDate = new Date();
+                periodStartDate.setDate(today.getDate() - (settings.payPeriod - 1));
+
+                let timesheetLines = [];
+                let acapTotal = 0;
+                let coreTotal = 0;
+                
+                const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', hour12: false });
+
+                for (let d = new Date(periodStartDate); d <= today; d.setDate(d.getDate() + 1)) {
+                    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    const entry = timeData[dateStr];
+                    const dayOfWeek = d.toLocaleDateString('en-US', { weekday: 'short' });
+                    const month = d.toLocaleDateString('en-US', { month: 'short' });
+                    const dayWithSuffix = getDayWithSuffix(d);
+                    let line = `${dayOfWeek} ${dayWithSuffix} - ${month}`;
+
+                    if (entry && calculateHours(dateStr) > 0) {
+                        const dayHours = calculateHours(dateStr);
+                        const timeInFormatted = entry.in ? timeFormatter.format(new Date(`1970-01-01T${entry.in}`)) : '';
+                        const timeOutFormatted = entry.out ? timeFormatter.format(new Date(`1970-01-01T${entry.out}`)) : '';
+                        
+                        line += ` ${timeInFormatted} - ${timeOutFormatted} ${dayHours.toFixed(2)} ${entry.type}`;
+
+                        if (entry.type === 'ACAP') {
+                            acapTotal += dayHours;
+                        } else {
+                            coreTotal += dayHours;
+                        }
+                    } else if (d.getDay() === 0 || d.getDay() === 6) {
+                        line += ' - Closed';
+                    }
+                    timesheetLines.push(line);
+                }
+
+                const summaryLines = [
+                    '\nHere is the summary:\n',
+                    `ACAP total: ${acapTotal.toFixed(2)} hours`,
+                    `Core total: ${coreTotal.toFixed(2)} hours`,
+                    `\nTotal: ${(acapTotal + coreTotal).toFixed(2)} hours`
+                ];
+
+                timesheetOutput.value = timesheetLines.join('\n') + summaryLines.join('\n');
+                timesheetModal.classList.add('active');
+            }
+
             function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
             function showConfirm(message, onConfirm) { playSound('open'); confirmMessage.textContent = message; onConfirmCallback = onConfirm; confirmModal.classList.add('active'); }
             function saveData() { localStorage.setItem('timeTrackerData', JSON.stringify(timeData)); }
@@ -423,6 +473,14 @@
                     modalHourType = button.dataset.type;
                     updateHourTypeSelectionUI();
                     playSound('click');
+                });
+            });
+            turnInHoursBtn.addEventListener('click', generateAndShowTimesheet);
+            closeTimesheetModalBtn.addEventListener('click', () => timesheetModal.classList.remove('active'));
+            copyTimesheetBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(timesheetOutput.value).then(() => {
+                    copyTimesheetBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyTimesheetBtn.textContent = 'Copy Timesheet'; }, 2000);
                 });
             });
             
