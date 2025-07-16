@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hours For Shelby</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #F3EAD3;
+            --bg-secondary: #FFFFFF;
+            --text-primary: #4A4A4A;
+            --text-secondary: #7A7A7A;
+            --accent-primary: #86A8E7;
+            --accent-secondary: #91EAE4;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.5s ease, color 0.5s ease; }
+        .card { background-color: var(--bg-secondary); border-radius: 1.5rem; box-shadow: 0 10px 25px -5px var(--shadow-color), 0 8px 10px -6px var(--shadow-color); transition: background-color 0.5s ease, box-shadow 0.5s ease; }
+        .btn { border-radius: 0.75rem; transition: transform 0.2s ease, background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease; }
+        .btn:active { transform: scale(0.95); }
+        .btn-primary { background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: white; border-color: transparent; }
+        .btn-secondary { background-color: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary); }
+        .btn-danger { background-color: #E74C3C; color: white; border-color: transparent; }
+        .input-field { background-color: var(--bg-primary); border: 1px solid transparent; border-radius: 0.75rem; transition: background-color 0.3s ease, border-color 0.3s ease; padding: 0.5rem 0.75rem; cursor: ns-resize; }
+        .input-field:focus { outline: none; border-color: var(--accent-primary); background-color: var(--bg-secondary); }
+        #notification-toast { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 100; opacity: 0; transform: translateY(2rem); transition: opacity 0.3s ease, transform 0.3s ease; }
+        #notification-toast.show { opacity: 1; transform: translateY(0); }
+        #timesheet-output { font-family: 'Courier New', Courier, monospace; white-space: pre; background-color: var(--bg-primary); }
+        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+        .modal-content { transform: scale(0.7); opacity: 0; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-out; }
+        .modal-backdrop.active .modal-content { transform: scale(1); opacity: 1; }
+
+        /* --- Animated Backgrounds --- */
+        #background-animation-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; overflow: hidden; }
+        .animated-gradient { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        
+        .particle { position: absolute; border-radius: 50%; background: var(--accent-primary); opacity: 0.6; animation: float 25s infinite ease-in-out; }
+        @keyframes float { 0% { transform: translateY(0) translateX(0); opacity: 0.6; } 50% { transform: translateY(-100vh) translateX(20vw); opacity: 0.8; } 100% { transform: translateY(0) translateX(0); opacity: 0.6; } }
+
+        .star { position: absolute; background-color: white; border-radius: 50%; animation: twinkle 5s infinite ease-in-out; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.5; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+
+        .rain-drop { position: absolute; bottom: 100%; width: 1px; height: 50px; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.3)); animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
+
+        .pulse-circle { position: absolute; border-radius: 50%; border: 2px solid var(--accent-secondary); animation: pulse 4s infinite cubic-bezier(0.2, 0.8, 0.2, 1); }
+        @keyframes pulse { 0% { transform: scale(0.1); opacity: 0; } 50% { opacity: 0.7; } 100% { transform: scale(1.2); opacity: 0; } }
+
+        .aurora-line { position: absolute; width: 200%; height: 200px; opacity: 0.15; border-radius: 50%; filter: blur(40px); }
+        .aurora-line:nth-child(1) { background: var(--accent-primary); animation: aurora 12s infinite linear; }
+        .aurora-line:nth-child(2) { background: var(--accent-secondary); animation: aurora 15s infinite linear reverse; }
+        @keyframes aurora { 0% { transform: translateX(-50%) translateY(-50%) rotate(0deg); } 100% { transform: translateX(-50%) translateY(-50%) rotate(360deg); } }
+
+        .petal { position: absolute; background-color: var(--accent-primary); opacity: 0.7; border-radius: 5% 40%; animation: drift linear infinite; }
+        @keyframes drift { 0% { transform: translateY(-10vh) translateX(0) rotate(0deg); } 100% { transform: translateY(110vh) translateX(15vw) rotate(720deg); } }
+
+        .bubble { position: absolute; bottom: -50px; border-radius: 50%; border: 1px solid var(--accent-secondary); animation: rise 10s infinite ease-in; }
+        @keyframes rise { 0% { transform: translateY(0) scale(1); opacity: 0.8; } 99% { transform: translateY(-110vh) scale(1.5); opacity: 0; } 100% { transform: translateY(-110vh) scale(0); opacity: 0; } }
+
+        .fog-layer { position: absolute; width: 200vw; height: 200vh; background: radial-gradient(circle, var(--accent-primary) 0%, transparent 70%); opacity: 0.05; animation: fog-drift 60s infinite linear; }
+        .fog-layer.two { animation-delay: -30s; animation-direction: reverse; }
+        @keyframes fog-drift { from { transform: rotate(0deg) translateX(50vw) rotate(0deg); } to { transform: rotate(360deg) translateX(50vw) rotate(-360deg); } }
+        
+        .shape { position: absolute; border-style: solid; animation: shape-float 30s infinite ease-in-out; }
+        @keyframes shape-float { 0% { transform: translateY(110vh) rotate(0deg); opacity: 0; } 10% { opacity: 0.4; } 90% { opacity: 0.4; } 100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; } }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="background-animation-container"></div>
+
+    <div class="min-h-screen p-4 sm:p-6 lg:p-8">
+        <div class="max-w-5xl mx-auto">
+            
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-3xl font-bold tracking-tight text-primary">Hours For Shelby.</h1>
+                <button id="settings-btn" class="p-3 rounded-full hover:bg-black/10 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </header>
+
+            <div class="flex justify-center items-center gap-4 sm:gap-8 mb-8">
+                <button id="clock-in-btn" class="btn btn-primary flex-1 max-w-xs py-4 px-6 text-xl font-bold shadow-lg flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sunrise"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="2" x2="12" y2="9"></line><line x1="4.22" y1="10.22" x2="5.64" y2="8.8"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="8.8" x2="19.78" y2="10.22"></line><line x1="12" y1="23" x2="12" y2="18"></line><polyline points="16 5 12 9 8 5"></polyline></svg>
+                    <span>Clock In</span>
+                </button>
+                <button id="clock-out-btn" class="btn btn-secondary flex-1 max-w-xs py-4 px-6 text-xl font-bold shadow-lg flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sunset"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="9" x2="12" y2="2"></line><line x1="4.22" y1="10.22" x2="5.64" y2="8.8"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="8.8" x2="19.78" y2="10.22"></line><line x1="12" y1="23" x2="12" y2="18"></line><polyline points="16 5 12 9 8 5"></polyline></svg>
+                    <span>Clock Out</span>
+                </button>
+            </div>
+
+            <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="lg:col-span-2 space-y-8">
+                    <div id="calendar-card" class="card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <button id="prev-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&lt;</button>
+                            <h2 id="month-year-header" class="text-xl font-bold"></h2>
+                            <button id="next-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&gt;</button>
+                        </div>
+                        <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center"></div>
+                    </div>
+
+                    <div class="card p-6">
+                        <h3 class="text-lg font-semibold mb-4">Summary</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p class="text-sm text-secondary">Today</p>
+                                <p id="summary-today" class="text-2xl font-bold">0.00h</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-secondary">Pay Period</p>
+                                <p id="summary-pay-period" class="text-2xl font-bold">0.00h</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-secondary">Total</p>
+                                <p id="summary-total" class="text-2xl font-bold">0.00h</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                         <button id="turn-in-hours-btn" class="btn btn-primary font-bold py-3 px-8 text-lg">Turn In Hours</button>
+                    </div>
+                </div>
+
+                <div class="card p-6 h-fit">
+                    <h3 class="text-lg font-semibold mb-2">Selected Day</h3>
+                    <p id="display-selected-date" class="text-sm text-secondary mb-6">Select a date</p>
+                    <div id="time-display-area" class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">Time In:</span>
+                            <span id="display-time-in" class="px-3 py-1 rounded-full text-sm font-bold text-white" style="background-color: var(--accent-primary);">--:--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">Time Out:</span>
+                            <span id="display-time-out" class="px-3 py-1 rounded-full text-sm font-bold text-white" style="background-color: var(--accent-secondary);">--:--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">Type:</span>
+                            <span id="display-hour-type" class="font-bold text-lg">---</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">Additional:</span>
+                            <span id="display-additional" class="font-bold text-lg">0.00h</span>
+                        </div>
+                        <hr class="my-4 border-dashed">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-lg">Total for Day:</span>
+                            <span id="display-day-total" class="font-bold text-xl" style="color: var(--accent-primary);">0.00h</span>
+                        </div>
+                    </div>
+                     <p id="no-hours-message" class="text-center text-secondary py-8 hidden">No hours logged for this day.</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="time-entry-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-md m-4 p-6">
+             <div class="flex justify-between items-center mb-4">
+                 <h3 class="text-lg font-semibold">Log Hours</h3>
+                 <button id="close-entry-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+             </div>
+            <p id="modal-selected-date" class="text-sm text-secondary mb-6"></p>
+            <div class="space-y-6">
+                <div> <label class="text-sm font-medium">Time In</label> <input id="time-in" type="time" class="input-field w-full mt-1" step="900"> </div>
+                <div> <label class="text-sm font-medium">Time Out</label> <input id="time-out" type="time" class="input-field w-full mt-1" step="900"> </div>
+                <div> <label class="text-sm font-medium mb-2 block">Type</label> <div class="grid grid-cols-2 gap-2"> <button data-type="CORE" class="hour-type-btn btn font-semibold py-2">CORE</button> <button data-type="ACAP" class="hour-type-btn btn font-semibold py-2">ACAP</button> </div> </div>
+                <div> <label class="text-sm font-medium">Additional Hours (optional)</label> <input id="additional-hours" type="number" step="0.01" placeholder="e.g., 1.5" class="input-field w-full mt-1"> </div>
+                <button id="save-btn" class="btn btn-primary w-full py-3 font-bold !mt-8">Save Hours</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-md m-4 max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex justify-between items-center mb-6"> <h2 class="text-2xl font-bold">Settings</h2> <button id="close-settings-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button> </div>
+            <div class="space-y-6">
+                <div><label for="theme-select" class="block text-sm font-medium mb-1">Color Theme</label><select id="theme-select" class="input-field w-full"></select></div>
+                <div><label for="background-select" class="block text-sm font-medium mb-1">Animated Background</label><select id="background-select" class="input-field w-full">
+                    <option value="none">None</option>
+                    <option value="gradient">Animated Gradient</option>
+                    <option value="particles">Floating Particles</option>
+                    <option value="starfield">Starfield</option>
+                    <option value="rain">Gentle Rain</option>
+                    <option value="pulse">Pulsing Circles</option>
+                    <option value="aurora">Aurora Lines</option>
+                    <option value="petals">Floating Petals</option>
+                    <option value="bubbles">Rising Bubbles</option>
+                    <option value="fog">Shifting Fog</option>
+                    <option value="shapes">Geometric Shapes</option>
+                </select></div>
+                <div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14">Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div>
+                <button id="clear-data-btn" class="btn btn-danger w-full py-2">Clear All Data</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-sm m-4 p-6 text-center">
+            <h3 id="confirm-message" class="text-lg font-medium mb-6">Are you sure?</h3>
+            <div class="flex justify-center gap-4"> <button id="confirm-cancel-btn" class="btn btn-secondary w-full py-2">Cancel</button> <button id="confirm-ok-btn" class="btn btn-danger w-full py-2">Confirm</button> </div>
+        </div>
+    </div>
+
+    <div id="clock-out-type-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-sm m-4 p-6 text-center">
+            <h3 class="text-lg font-medium mb-6">What type of hours?</h3>
+            <div class="flex flex-col gap-4">
+                <button id="confirm-acap-btn" class="btn btn-primary w-full py-3 font-bold">ACAP</button>
+                <button id="confirm-core-btn" class="btn btn-primary w-full py-3 font-bold">CORE</button>
+                <button id="clock-out-cancel-btn" class="btn btn-secondary w-full py-2 mt-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="timesheet-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-lg m-4 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Generated Timesheet</h3>
+                <button id="close-timesheet-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+            </div>
+            <textarea id="timesheet-output" readonly class="w-full h-64 p-2 border rounded-lg input-field resize-none"></textarea>
+            <div class="flex gap-4 mt-4">
+                <button id="copy-timesheet-btn" class="btn btn-primary w-full py-2">Copy Timesheet</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-toast" class="card py-3 px-5"> <p id="notification-message"></p> </div>
+
+    <script>
+        window.onload = function() {
+            // --- DOM ELEMENTS ---
+            const calendarGrid = document.getElementById('calendar-grid');
+            const monthYearHeader = document.getElementById('month-year-header');
+            const prevMonthBtn = document.getElementById('prev-month-btn');
+            const nextMonthBtn = document.getElementById('next-month-btn');
+            const summaryToday = document.getElementById('summary-today');
+            const summaryPayPeriod = document.getElementById('summary-pay-period');
+            const summaryTotal = document.getElementById('summary-total');
+            const displaySelectedDate = document.getElementById('display-selected-date');
+            const displayTimeIn = document.getElementById('display-time-in');
+            const displayTimeOut = document.getElementById('display-time-out');
+            const displayHourType = document.getElementById('display-hour-type');
+            const displayAdditional = document.getElementById('display-additional');
+            const displayDayTotal = document.getElementById('display-day-total');
+            const timeDisplayArea = document.getElementById('time-display-area');
+            const noHoursMessage = document.getElementById('no-hours-message');
+            const timeEntryModal = document.getElementById('time-entry-modal');
+            const closeEntryModalBtn = document.getElementById('close-entry-modal-btn');
+            const modalSelectedDate = document.getElementById('modal-selected-date');
+            const timeInInput = document.getElementById('time-in');
+            const timeOutInput = document.getElementById('time-out');
+            const hourTypeButtons = document.querySelectorAll('.hour-type-btn');
+            const additionalHoursInput = document.getElementById('additional-hours');
+            const saveBtn = document.getElementById('save-btn');
+            const settingsBtn = document.getElementById('settings-btn');
+            const closeSettingsModalBtn = document.getElementById('close-settings-modal-btn');
+            const settingsModal = document.getElementById('settings-modal');
+            const themeSelect = document.getElementById('theme-select');
+            const backgroundSelect = document.getElementById('background-select');
+            const payPeriodSelect = document.getElementById('pay-period-select');
+            const clearDataBtn = document.getElementById('clear-data-btn');
+            const confirmModal = document.getElementById('confirm-modal');
+            const confirmMessage = document.getElementById('confirm-message');
+            const confirmOkBtn = document.getElementById('confirm-ok-btn');
+            const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+            const notificationToast = document.getElementById('notification-toast');
+            const notificationMessage = document.getElementById('notification-message');
+            const turnInHoursBtn = document.getElementById('turn-in-hours-btn');
+            const timesheetModal = document.getElementById('timesheet-modal');
+            const closeTimesheetModalBtn = document.getElementById('close-timesheet-modal-btn');
+            const timesheetOutput = document.getElementById('timesheet-output');
+            const copyTimesheetBtn = document.getElementById('copy-timesheet-btn');
+            const clockInBtn = document.getElementById('clock-in-btn');
+            const clockOutBtn = document.getElementById('clock-out-btn');
+            const clockOutTypeModal = document.getElementById('clock-out-type-modal');
+            const confirmAcapBtn = document.getElementById('confirm-acap-btn');
+            const confirmCoreBtn = document.getElementById('confirm-core-btn');
+            const clockOutCancelBtn = document.getElementById('clock-out-cancel-btn');
+            const backgroundContainer = document.getElementById('background-animation-container');
+
+            // --- STATE MANAGEMENT ---
+            let currentDate = new Date();
+            let selectedDate = null;
+            let timeData = {};
+            let settings = { theme: 'default', background: 'none', payPeriod: 14 };
+            let modalHourType = 'CORE';
+            let onConfirmCallback = null;
+            let notificationTimeout;
+            
+            // --- MESSAGES ---
+            const clockInMessages = [
+                "🌱 Clocked in! Have a peaceful session.", "Begin your moment of focus.", "Welcome to your tranquil space.", "Time to gently begin.", "Your focused time starts now.", "Ease into your work.", "May your session be calm and productive.", "Let's start this session with intention.", "A new session begins. Breathe.", "Find your flow. You've clocked in.", "Welcome. May your mind be clear.", "Time to create, time to focus.", "Your calm space awaits.", "Let the peace of the moment settle in.", "Ready for a serene session.", "Begin with a deep breath.", "The journey of work begins with a single clock-in.", "Let's make this a mindful session.", "Focus and tranquility are yours.", "Starting the clock. Wishing you clarity.", "Your session has gracefully begun.", "Time to tune in and be present.", "Wishing you a smooth and easy session.", "Let your work flow like a gentle stream.", "The canvas is blank. Time to paint.", "Enter your zone of peace.", "Clocked in. May your efforts be fruitful.", "Let's begin this chapter of work.", "A quiet start to a productive time.", "Your presence is requested... by your work.", "And so it begins. Gently."
+            ];
+            const clockOutMessages = [
+                "✨ Clocked out! Time to relax.", "Your work is complete. Rest well.", "Ease into your time off.", "The session has ended. Peace out.", "Well done. Now, unplug and unwind.", "You've earned this break. Enjoy it.", "Time to transition to tranquility.", "Close this chapter. A new one awaits.", "Let go of the day's work. Be free.", "Your session is peacefully concluded.", "Rest and rejuvenate. You deserve it.", "Step away and find your calm.", "The day's efforts are done. Be at peace.", "Good work. Now, enjoy the quiet.", "Your time is now your own.", "Breathe out the work, breathe in the peace.", "Thank you for your focus. Time to rest.", "Let the stillness settle in.", "Session complete. Find your bliss.", "Unwind, unclutter, and be calm.", "The clock has stopped. Your time begins.", "Release the day. Welcome the evening.", "A job well done. Now for some peace.", "May your rest be deep and restoring.", "You have given your best. Now, receive your rest.", "The work is done. Let the relaxation commence.", "Sign off and drift into serenity.", "You may now power down.", "Let your mind wander freely now.", "It's time to be, not to do.", "Well done. The evening is yours."
+            ];
+
+            // --- HELPER FUNCTIONS ---
+            function getDateString(date) {
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            }
+
+            function getRoundedTime(date) {
+                const totalMinutes = date.getHours() * 60 + date.getMinutes();
+                const roundedMinutes = Math.round(totalMinutes / 15) * 15;
+                let hours = Math.floor(roundedMinutes / 60);
+                let minutes = roundedMinutes % 60;
+                if (hours >= 24) hours = 0; // Handle midnight rollover
+                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            }
+
+            // --- THEME & BACKGROUND MANAGEMENT ---
+            const themes = {
+                default: { '--bg-primary': '#F3EAD3', '--bg-secondary': '#FFFFFF', '--text-primary': '#4A4A4A', '--text-secondary': '#7A7A7A', '--accent-primary': '#86A8E7', '--accent-secondary': '#91EAE4' },
+                'Oceanic': { '--bg-primary': '#0B2027', '--bg-secondary': '#12343B', '--text-primary': '#E0FBFC', '--text-secondary': '#96C5D9', '--accent-primary': '#3EF7B2', '--accent-secondary': '#00B4D8' },
+                'Sakura': { '--bg-primary': '#F9F1F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#5B4242', '--text-secondary': '#8D6E6E', '--accent-primary': '#FFB7C5', '--accent-secondary': '#E6A4B4' },
+                'Forest': { '--bg-primary': '#E8F5E9', '--bg-secondary': '#FFFFFF', '--text-primary': '#2E7D32', '--text-secondary': '#66BB6A', '--accent-primary': '#4CAF50', '--accent-secondary': '#81C784' },
+                'Dusk': { '--bg-primary': '#2C3E50', '--bg-secondary': '#34495E', '--text-primary': '#ECF0F1', '--text-secondary': '#BDC3C7', '--accent-primary': '#E74C3C', '--accent-secondary': '#F1C40F' },
+                'Lavender': { '--bg-primary': '#E6E6FA', '--bg-secondary': '#FFFFFF', '--text-primary': '#483D8B', '--text-secondary': '#6A5ACD', '--accent-primary': '#9370DB', '--accent-secondary': '#BA55D3' },
+                'Sunset': { '--bg-primary': '#3C2F41', '--bg-secondary': '#594255', '--text-primary': '#F8E9A1', '--text-secondary': '#F7C4A5', '--accent-primary': '#F08A5D', '--accent-secondary': '#B83B5E' },
+                'Moonlight': { '--bg-primary': '#0C0E1B', '--bg-secondary': '#1D2238', '--text-primary': '#EAEBF5', '--text-secondary': '#A0A8D9', '--accent-primary': '#8899F2', '--accent-secondary': '#C5CFFC' },
+                'Mint': { '--bg-primary': '#E0F2F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#004D40', '--text-secondary': '#00796B', '--accent-primary': '#4DB6AC', '--accent-secondary': '#A7FFEB' },
+                'Parchment': { '--bg-primary': '#FDF6E3', '--bg-secondary': '#FFFBF2', '--text-primary': '#655643', '--text-secondary': '#988A78', '--accent-primary': '#856D4B', '--accent-secondary': '#B58900' },
+            };
+            function applyTheme(themeName) { const theme = themes[themeName]; if (!theme) return; Object.keys(theme).forEach(key => document.documentElement.style.setProperty(key, theme[key])); settings.theme = themeName; saveSettings(); }
+            function populateThemeSelector() { Object.keys(themes).forEach(name => { const option = document.createElement('option'); option.value = name; option.textContent = name; themeSelect.appendChild(option); }); }
+            function applyBackground(backgroundName) {
+                backgroundContainer.innerHTML = '';
+                document.body.classList.remove('animated-gradient');
+                const creators = {
+                    gradient: () => document.body.classList.add('animated-gradient'),
+                    particles: () => { for (let i = 0; i < 20; i++) { const p = document.createElement('div'); p.classList.add('particle'); const size = Math.random() * 10 + 5; p.style.width = `${size}px`; p.style.height = `${size}px`; p.style.left = `${Math.random() * 100}vw`; p.style.top = `${Math.random() * 100}vh`; p.style.animationDuration = `${Math.random() * 15 + 15}s`; p.style.animationDelay = `${Math.random() * -25}s`; backgroundContainer.appendChild(p); }},
+                    starfield: () => { for (let i = 0; i < 100; i++) { const s = document.createElement('div'); s.classList.add('star'); const size = Math.random() * 2 + 1; s.style.width = `${size}px`; s.style.height = `${size}px`; s.style.left = `${Math.random() * 100}%`; s.style.top = `${Math.random() * 100}%`; s.style.animationDelay = `${Math.random() * 5}s`; backgroundContainer.appendChild(s); }},
+                    rain: () => { for (let i = 0; i < 50; i++) { const r = document.createElement('div'); r.classList.add('rain-drop'); r.style.left = `${Math.random() * 100}%`; r.style.animationDuration = `${0.5 + Math.random() * 0.5}s`; r.style.animationDelay = `${Math.random() * 5}s`; backgroundContainer.appendChild(r); }},
+                    pulse: () => { for (let i = 0; i < 10; i++) { const c = document.createElement('div'); c.classList.add('pulse-circle'); c.style.left = `${Math.random() * 100}%`; c.style.top = `${Math.random() * 100}%`; c.style.animationDelay = `${Math.random() * 4}s`; backgroundContainer.appendChild(c); }},
+                    aurora: () => { backgroundContainer.innerHTML = '<div class="aurora-line"></div><div class="aurora-line"></div>'; },
+                    petals: () => { for (let i = 0; i < 15; i++) { const p = document.createElement('div'); p.classList.add('petal'); const size = Math.random() * 10 + 5; p.style.width = `${size}px`; p.style.height = `${size * 1.5}px`; p.style.left = `${Math.random() * 100}vw`; p.style.animationDuration = `${10 + Math.random() * 10}s`; p.style.animationDelay = `${Math.random() * 10}s`; backgroundContainer.appendChild(p); }},
+                    bubbles: () => { for (let i = 0; i < 15; i++) { const b = document.createElement('div'); b.classList.add('bubble'); const size = Math.random() * 30 + 10; b.style.width = `${size}px`; b.style.height = `${size}px`; b.style.left = `${Math.random() * 100}vw`; b.style.animationDuration = `${8 + Math.random() * 10}s`; b.style.animationDelay = `${Math.random() * 8}s`; backgroundContainer.appendChild(b); }},
+                    fog: () => { backgroundContainer.innerHTML = '<div class="fog-layer"></div><div class="fog-layer two"></div>'; },
+                    shapes: () => { for (let i = 0; i < 10; i++) { const el = document.createElement('div'); el.classList.add('shape'); const size = Math.random() * 40 + 20; const type = Math.random(); if (type < 0.5) { el.style.width = '0'; el.style.height = '0'; el.style.borderLeft = `${size / 2}px solid transparent`; el.style.borderRight = `${size / 2}px solid transparent`; el.style.borderBottom = `${size}px solid var(--accent-primary)`; } else { el.style.width = `${size}px`; el.style.height = `${size}px`; el.style.borderWidth = '2px'; el.style.borderColor = 'var(--accent-secondary)'; } el.style.left = `${Math.random() * 100}vw`; el.style.animationDelay = `${Math.random() * -30}s`; backgroundContainer.appendChild(el); }},
+                };
+                if (creators[backgroundName]) creators[backgroundName]();
+                settings.background = backgroundName;
+                saveSettings();
+            }
+
+            // --- CALENDAR LOGIC ---
+            function renderCalendar() {
+                calendarGrid.innerHTML = '';
+                const month = currentDate.getMonth();
+                const year = currentDate.getFullYear();
+                monthYearHeader.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+                ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(day => { const dayEl = document.createElement('div'); dayEl.className = 'font-bold text-secondary text-sm'; dayEl.textContent = day; calendarGrid.appendChild(dayEl); });
+                const firstDayOfMonth = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let i = 0; i < firstDayOfMonth; i++) calendarGrid.appendChild(document.createElement('div'));
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayEl = document.createElement('button');
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    dayEl.textContent = day;
+                    dayEl.className = 'p-2 rounded-full transition-all duration-200 w-10 h-10 mx-auto flex items-center justify-center';
+                    if (timeData[dateStr] && calculateHours(dateStr) > 0) { dayEl.classList.add('font-bold'); dayEl.style.backgroundColor = 'var(--accent-secondary)'; dayEl.style.color = 'white'; }
+                    if (selectedDate === dateStr) { dayEl.classList.add('ring-2', 'ring-offset-2'); dayEl.style.borderColor = 'var(--accent-primary)'; }
+                    const today = new Date();
+                    if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) { dayEl.classList.add('font-extrabold'); }
+                    dayEl.addEventListener('click', () => openTimeEntryModal(dateStr));
+                    calendarGrid.appendChild(dayEl);
+                }
+            }
+
+            // --- TIME INPUT & ROUNDING ---
+            function roundToNearestQuarterHour(timeString) { if (!timeString) return ''; const [hours, minutes] = timeString.split(':').map(Number); const totalMinutes = hours * 60 + minutes; const roundedMinutes = Math.round(totalMinutes / 15) * 15; const newHours = Math.floor(roundedMinutes / 60) % 24; const newMinutes = roundedMinutes % 60; return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`; }
+            function handleTimeInput(e) { e.target.value = roundToNearestQuarterHour(e.target.value); }
+            function setupTimeInputListeners(inputElement) {
+                inputElement.addEventListener('change', handleTimeInput);
+                let startY = 0, isDragging = false;
+                const handleSwipe = (e) => { if (!isDragging) return; e.preventDefault(); const currentY = e.touches ? e.touches[0].clientY : e.clientY; const deltaY = startY - currentY; if (Math.abs(deltaY) > 10) { const direction = deltaY > 0 ? 1 : -1; let [hours, minutes] = (inputElement.value || '00:00').split(':').map(Number); let totalMinutes = hours * 60 + minutes + (direction * 15); if (totalMinutes < 0) totalMinutes = 23 * 60 + 45; if (totalMinutes >= 24 * 60) totalMinutes = 0; const newHours = Math.floor(totalMinutes / 60); const newMinutes = totalMinutes % 60; inputElement.value = `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`; startY = currentY; } };
+                const stopSwipe = () => { isDragging = false; window.removeEventListener('mousemove', handleSwipe); window.removeEventListener('mouseup', stopSwipe); window.removeEventListener('touchmove', handleSwipe); window.removeEventListener('touchend', stopSwipe); };
+                inputElement.addEventListener('mousedown', (e) => { isDragging = true; startY = e.clientY; window.addEventListener('mousemove', handleSwipe); window.addEventListener('mouseup', stopSwipe); });
+                inputElement.addEventListener('touchstart', (e) => { isDragging = true; startY = e.touches[0].clientY; window.addEventListener('touchmove', handleSwipe); window.addEventListener('touchend', stopSwipe); });
+            }
+
+            // --- UI & DATA FLOW ---
+            function openTimeEntryModal(dateStr) { selectedDate = dateStr; updateDisplayPanel(dateStr); loadEntryForModal(dateStr); renderCalendar(); timeEntryModal.classList.add('active'); }
+            function closeTimeEntryModal() { timeEntryModal.classList.remove('active'); }
+            function updateDisplayPanel(dateStr) {
+                const entry = timeData[dateStr];
+                const dateObj = new Date(`${dateStr}T00:00:00`);
+                displaySelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                if (entry && calculateHours(dateStr) > 0) {
+                    displayTimeIn.textContent = entry.in || '--:--';
+                    displayTimeOut.textContent = entry.out || '--:--';
+                    displayHourType.textContent = entry.type || '---';
+                    displayAdditional.textContent = `${(entry.additional || 0).toFixed(2)}h`;
+                    displayDayTotal.textContent = `${calculateHours(dateStr).toFixed(2)}h`;
+                    timeDisplayArea.classList.remove('hidden');
+                    noHoursMessage.classList.add('hidden');
+                } else {
+                    timeDisplayArea.classList.add('hidden');
+                    noHoursMessage.classList.remove('hidden');
+                }
+            }
+            function updateHourTypeSelectionUI() {
+                hourTypeButtons.forEach(btn => {
+                    if (btn.dataset.type === modalHourType) { btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary'); } 
+                    else { btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary'); }
+                });
+            }
+            function loadEntryForModal(dateStr) {
+                const entry = timeData[dateStr];
+                const dateObj = new Date(`${dateStr}T00:00:00`);
+                modalSelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                timeInInput.value = entry?.in || '';
+                timeOutInput.value = entry?.out || '';
+                additionalHoursInput.value = entry?.additional || '';
+                modalHourType = entry?.type || 'CORE';
+                updateHourTypeSelectionUI();
+            }
+            function saveEntry() {
+                if (!selectedDate) return;
+                showNotification('Hours saved!');
+                timeData[selectedDate] = { in: timeInInput.value, out: timeOutInput.value, type: modalHourType, additional: parseFloat(additionalHoursInput.value) || 0 };
+                saveData();
+                renderCalendar();
+                updateSummaries();
+                updateDisplayPanel(selectedDate);
+                setTimeout(closeTimeEntryModal, 400); 
+            }
+            function calculateHours(dateStr) {
+                const entry = timeData[dateStr];
+                if (!entry) return 0;
+                let duration = 0;
+                if (entry.in && entry.out) { const timeIn = new Date(`${dateStr}T${entry.in}`); const timeOut = new Date(`${dateStr}T${entry.out}`); if (timeOut > timeIn) duration = (timeOut - timeIn) / 3600000; }
+                return duration + (entry.additional || 0);
+            }
+            function updateSummaries() {
+                const today = new Date();
+                const todayStr = getDateString(today);
+                summaryToday.textContent = `${calculateHours(todayStr).toFixed(2)}h`;
+                const totalHours = Object.keys(timeData).reduce((acc, date) => acc + calculateHours(date), 0);
+                summaryTotal.textContent = `${totalHours.toFixed(2)}h`;
+                let periodHours = 0;
+                for (let i = 0; i < settings.payPeriod; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    const dateStr = getDateString(date);
+                    periodHours += calculateHours(dateStr);
+                }
+                summaryPayPeriod.textContent = `${periodHours.toFixed(2)}h`;
+            }
+            
+            // --- MODALS, NOTIFICATIONS, STORAGE, & TIMESHEET ---
+            function getDayWithSuffix(d) {
+                const day = d.getDate();
+                if (day > 3 && day < 21) return day + 'th';
+                switch (day % 10) {
+                    case 1: return day + "st";
+                    case 2: return day + "nd";
+                    case 3: return day + "rd";
+                    default: return day + "th";
+                }
+            }
+            function generateAndShowTimesheet() {
+                const today = new Date();
+                const periodStartDate = new Date();
+                periodStartDate.setDate(today.getDate() - (settings.payPeriod - 1));
+                let timesheetLines = [];
+                let acapTotal = 0;
+                let coreTotal = 0;
+                const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', hour12: false });
+                for (let d = new Date(periodStartDate); d <= today; d.setDate(d.getDate() + 1)) {
+                    const dateStr = getDateString(d);
+                    const entry = timeData[dateStr];
+                    const dayOfWeek = d.toLocaleDateString('en-US', { weekday: 'short' });
+                    const month = d.toLocaleDateString('en-US', { month: 'short' });
+                    const dayWithSuffix = getDayWithSuffix(d);
+                    let line = `${dayOfWeek} ${dayWithSuffix} - ${month}`;
+                    if (entry && calculateHours(dateStr) > 0) {
+                        const dayHours = calculateHours(dateStr);
+                        const timeInFormatted = entry.in ? timeFormatter.format(new Date(`1970-01-01T${entry.in}`)) : '';
+                        const timeOutFormatted = entry.out ? timeFormatter.format(new Date(`1970-01-01T${entry.out}`)) : '';
+                        line += ` ${timeInFormatted} - ${timeOutFormatted} ${dayHours.toFixed(2)} ${entry.type}`;
+                        if (entry.type === 'ACAP') { acapTotal += dayHours; } else { coreTotal += dayHours; }
+                    } else if (d.getDay() === 0 || d.getDay() === 6) { line += ' - Closed'; }
+                    timesheetLines.push(line);
+                }
+                const summaryLines = [ '\nHere is the summary:\n', `ACAP total: ${acapTotal.toFixed(2)} hours`, `Core total: ${coreTotal.toFixed(2)} hours`, `\nTotal: ${(acapTotal + coreTotal).toFixed(2)} hours` ];
+                timesheetOutput.value = timesheetLines.join('\n') + summaryLines.join('\n');
+                timesheetModal.classList.add('active');
+            }
+            function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
+            function showConfirm(message, onConfirm) { confirmMessage.textContent = message; onConfirmCallback = onConfirm; confirmModal.classList.add('active'); }
+            function saveData() { localStorage.setItem('timeTrackerData', JSON.stringify(timeData)); }
+            function loadData() { const d = localStorage.getItem('timeTrackerData'); if (d) timeData = JSON.parse(d); }
+            function saveSettings() { localStorage.setItem('timeTrackerSettings', JSON.stringify(settings)); }
+            function loadSettings() { const s = localStorage.getItem('timeTrackerSettings'); if (s) { const loaded = JSON.parse(s); delete loaded.sound; settings = {...settings, ...loaded}; } }
+            function clearAllData() { showConfirm('Delete all time entries? This cannot be undone.', () => { timeData = {}; saveData(); renderCalendar(); updateSummaries(); updateDisplayPanel(selectedDate); showNotification('All data cleared.'); }); }
+
+            // --- EVENT LISTENERS ---
+            prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+            nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+            saveBtn.addEventListener('click', saveEntry);
+            closeEntryModalBtn.addEventListener('click', closeTimeEntryModal);
+            settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
+            closeSettingsModalBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
+            confirmOkBtn.addEventListener('click', () => { if (onConfirmCallback) onConfirmCallback(); confirmModal.classList.remove('active'); onConfirmCallback = null; });
+            confirmCancelBtn.addEventListener('click', () => { confirmModal.classList.remove('active'); onConfirmCallback = null; });
+            themeSelect.addEventListener('change', e => applyTheme(e.target.value));
+            backgroundSelect.addEventListener('change', e => applyBackground(e.target.value));
+            payPeriodSelect.addEventListener('change', e => { settings.payPeriod = parseInt(e.target.value, 10); saveSettings(); updateSummaries(); });
+            clearDataBtn.addEventListener('click', clearAllData);
+            hourTypeButtons.forEach(button => { button.addEventListener('click', (e) => { e.preventDefault(); modalHourType = button.dataset.type; updateHourTypeSelectionUI(); }); });
+            turnInHoursBtn.addEventListener('click', generateAndShowTimesheet);
+            closeTimesheetModalBtn.addEventListener('click', () => timesheetModal.classList.remove('active'));
+            copyTimesheetBtn.addEventListener('click', () => { navigator.clipboard.writeText(timesheetOutput.value).then(() => { copyTimesheetBtn.textContent = 'Copied!'; setTimeout(() => { copyTimesheetBtn.textContent = 'Copy Timesheet'; }, 2000); }); });
+            
+            // Clock In/Out Listeners
+            clockInBtn.addEventListener('click', () => {
+                const now = new Date();
+                const todayStr = getDateString(now);
+                const roundedTime = getRoundedTime(now);
+                if (!timeData[todayStr]) { timeData[todayStr] = {}; }
+                timeData[todayStr].in = roundedTime;
+                delete timeData[todayStr].out;
+                delete timeData[todayStr].type;
+                selectedDate = todayStr;
+                saveData();
+                renderCalendar();
+                updateSummaries();
+                updateDisplayPanel(todayStr);
+                const randomMessage = clockInMessages[Math.floor(Math.random() * clockInMessages.length)];
+                showNotification(randomMessage);
+            });
+
+            clockOutBtn.addEventListener('click', () => {
+                const now = new Date();
+                const todayStr = getDateString(now);
+                if (!timeData[todayStr] || !timeData[todayStr].in || timeData[todayStr].out) {
+                    showNotification('You need to be clocked in to clock out.');
+                    return;
+                }
+                clockOutTypeModal.classList.add('active');
+            });
+            
+            function handleClockOutWithType(type) {
+                const now = new Date();
+                const todayStr = getDateString(now);
+                const roundedTime = getRoundedTime(now);
+                timeData[todayStr].out = roundedTime;
+                timeData[todayStr].type = type;
+                selectedDate = todayStr;
+                saveData();
+                renderCalendar();
+                updateSummaries();
+                updateDisplayPanel(todayStr);
+                clockOutTypeModal.classList.remove('active');
+                const randomMessage = clockOutMessages[Math.floor(Math.random() * clockOutMessages.length)];
+                showNotification(randomMessage);
+            }
+
+            confirmAcapBtn.addEventListener('click', () => handleClockOutWithType('ACAP'));
+            confirmCoreBtn.addEventListener('click', () => handleClockOutWithType('CORE'));
+            clockOutCancelBtn.addEventListener('click', () => { clockOutTypeModal.classList.remove('active'); });
+
+            // --- INITIALIZATION ---
+            function init() {
+                loadSettings();
+                loadData();
+                populateThemeSelector();
+                themeSelect.value = settings.theme;
+                applyTheme(settings.theme);
+                backgroundSelect.value = settings.background;
+                applyBackground(settings.background);
+                payPeriodSelect.value = settings.payPeriod;
+                const todayStr = getDateString(new Date());
+                selectedDate = todayStr;
+                renderCalendar();
+                updateDisplayPanel(selectedDate);
+                updateSummaries();
+                setupTimeInputListeners(timeInInput);
+                setupTimeInputListeners(timeOutInput);
+            }
+
+            init();
+        };
+    </script>
+</body>
+</html>
