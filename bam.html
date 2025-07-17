@@ -36,16 +36,12 @@
         }
         .joard-element {
             position: absolute;
-            min-width: 150px;
-            min-height: 100px;
             padding: 1rem;
             border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             cursor: move;
             display: flex;
             flex-direction: column;
-            resize: both;
-            overflow: auto;
+            overflow: hidden; /* Hide overflow for resize logic */
             z-index: 2; /* Above the board background */
         }
         .joard-element textarea {
@@ -55,15 +51,25 @@
             outline: none;
             width: 100%;
             height: 100%;
+            padding: 0;
+            margin: 0;
             font-family: inherit;
             color: #1f2937;
             flex-grow: 1;
+            line-height: 1.4;
         }
         .joard-element.sticky-note {
             background-color: #fef9c3; /* Soothing yellow */
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            resize: none;
         }
         .joard-element.text-box {
-             background-color: #ffffff;
+             background-color: transparent;
+             border: 2px dashed transparent;
+             resize: both;
+        }
+        .joard-element.text-box:hover {
+            border-color: #9ca3af;
         }
         .delete-btn {
             position: absolute;
@@ -174,6 +180,7 @@
         let activeElement = null;
         let isDragging = false;
         let initialPos = { x: 0, y: 0 };
+        let resizeObserver;
 
         // --- INITIALIZATION ---
         function initializePeer() {
@@ -189,6 +196,23 @@
             peer.on('error', err => {
                 console.error('PeerJS error:', err);
                 alert(`An error occurred: ${err.message}. Please refresh.`);
+            });
+        }
+
+        function initializeResizeObserver() {
+            resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    const id = entry.target.id;
+                    const targetElement = boardState.find(e => e.id === id);
+                    if (targetElement) {
+                        // Use requestAnimationFrame to avoid "ResizeObserver loop limit exceeded" error
+                        window.requestAnimationFrame(() => {
+                            targetElement.width = entry.contentRect.width;
+                            targetElement.height = entry.contentRect.height;
+                            // Only broadcast after resizing stops (on mouseup)
+                        });
+                    }
+                }
             });
         }
 
@@ -234,7 +258,8 @@
                 content: type === 'sticky-note' ? 'Edit me!' : 'Type something...',
                 x: 100 + (boardState.filter(e => e.type !== 'stroke').length % 5) * 20,
                 y: 100 + (boardState.filter(e => e.type !== 'stroke').length % 5) * 20,
-                width: 200, height: 150,
+                width: 200, 
+                height: type === 'sticky-note' ? 200 : 150, // Sticky notes are square
             };
             boardState.push(newElement);
             renderBoard();
@@ -257,6 +282,7 @@
         // --- RENDERING ---
         function renderBoard() {
             board.innerHTML = ''; // Clear div elements
+            if (resizeObserver) resizeObserver.disconnect(); // Disconnect old observers
             ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height); // Clear canvas
 
             boardState.forEach(elemData => {
@@ -279,10 +305,14 @@
 
             const textArea = document.createElement('textarea');
             textArea.value = elemData.content;
+            
             textArea.addEventListener('input', () => {
                 const targetElement = boardState.find(e => e.id === elemData.id);
                 if (targetElement) {
                     targetElement.content = textArea.value;
+                    if (targetElement.type === 'sticky-note') {
+                        adjustStickyFontSize(textArea);
+                    }
                     broadcastState();
                 }
             });
@@ -300,6 +330,24 @@
             elemDiv.appendChild(textArea);
             elemDiv.appendChild(deleteBtn);
             board.appendChild(elemDiv);
+
+            if (elemData.type === 'text-box') {
+                resizeObserver.observe(elemDiv);
+            }
+            if (elemData.type === 'sticky-note') {
+                adjustStickyFontSize(textArea);
+            }
+        }
+
+        function adjustStickyFontSize(textArea) {
+            const container = textArea.parentElement;
+            let fontSize = 20; // Start with a large font size
+            textArea.style.fontSize = `${fontSize}px`;
+            // Reduce font size until text fits
+            while ((textArea.scrollHeight > container.clientHeight || textArea.scrollWidth > container.clientWidth) && fontSize > 8) {
+                fontSize--;
+                textArea.style.fontSize = `${fontSize}px`;
+            }
         }
 
         function drawStroke(strokeData) {
@@ -354,10 +402,9 @@
             if (isDrawing && activeTool === 'pen') {
                 const pos = getMousePos(e);
                 currentPath.push(pos);
-                // Draw live for responsiveness
                 ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                renderBoard(); // Redraw existing state
-                drawStroke({ points: currentPath, color: penColor, width: 4 }); // Draw current path
+                renderBoard();
+                drawStroke({ points: currentPath, color: penColor, width: 4 });
             } else if (isDragging && activeTool === 'select' && activeElement) {
                 const boardRect = board.getBoundingClientRect();
                 let newX = e.clientX - boardRect.left - initialPos.x;
@@ -378,7 +425,7 @@
             if (isDrawing && activeTool === 'pen') {
                 addStroke();
             } else if (isDragging && activeTool === 'select') {
-                broadcastState(); // Broadcast final position
+                broadcastState(); // Broadcast final position and size
             }
             isDrawing = false;
             isDragging = false;
@@ -421,8 +468,8 @@
             document.execCommand('copy');
             alert('Share code copied to clipboard!');
         });
-        addStickyBtn.addEventListener('click', () => addElement('sticky-note'));
-        addTextBtn.addEventListener('click', () => addElement('text-box'));
+        addStickyBtn.addEventListener('click', () => setActiveTool('add-sticky-btn'));
+        addTextBtn.addEventListener('click', () => setActiveTool('add-text-btn'));
         toolSelectBtn.addEventListener('click', () => setActiveTool('select'));
         toolPenBtn.addEventListener('click', () => setActiveTool('pen'));
         penOptions.addEventListener('click', (e) => {
@@ -431,7 +478,6 @@
             }
         });
 
-        // Drawing and Dragging Listeners
         boardContainer.addEventListener('mousedown', handleMouseDown);
         boardContainer.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
@@ -439,6 +485,7 @@
 
         // --- LET'S GO! ---
         initializePeer();
+        initializeResizeObserver();
         resizeCanvas();
         setActiveTool('select');
         setPenColor('#000000');
