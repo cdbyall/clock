@@ -71,6 +71,17 @@
         .joard-element.text-box:hover {
             border-color: #9ca3af;
         }
+        .joard-element.image {
+            padding: 0;
+            resize: both;
+            background-color: #fff;
+            border: 2px solid #cbd5e1;
+        }
+        .joard-element.image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
         .delete-btn {
             position: absolute;
             top: -10px;
@@ -161,6 +172,9 @@
             <button id="add-text-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
                 <i class="fas fa-font text-gray-600"></i>
             </button>
+            <button id="add-image-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
+                <i class="fas fa-image text-gray-600"></i>
+            </button>
             <div id="pen-options" class="hidden items-center gap-2 ml-2 border-l pl-2">
                 <button class="color-btn w-6 h-6 rounded-full" style="background-color: #000000;" data-color="#000000"></button>
                 <button class="color-btn w-6 h-6 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
@@ -192,6 +206,23 @@
         </div>
     </div>
 
+    <!-- Image Search Modal -->
+    <div id="image-search-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Search for Images</h2>
+                <button id="close-image-search-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="image-search-input" placeholder="e.g., 'calming beaches'..." class="flex-grow border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-400">
+                <button id="image-search-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md">Search</button>
+            </div>
+            <div id="image-results" class="grid grid-cols-3 gap-4 h-96 overflow-y-auto bg-gray-100 p-4 rounded-md">
+                <!-- Image results will be populated here -->
+            </div>
+        </div>
+    </div>
+
 
     <script>
         // --- DOM ELEMENTS ---
@@ -214,8 +245,14 @@
         const toolPenBtn = document.getElementById('tool-pen');
         const addStickyBtn = document.getElementById('add-sticky-btn');
         const addTextBtn = document.getElementById('add-text-btn');
+        const addImageBtn = document.getElementById('add-image-btn');
         const penOptions = document.getElementById('pen-options');
         const toast = document.getElementById('toast');
+        const imageSearchModal = document.getElementById('image-search-modal');
+        const closeImageSearchModalBtn = document.getElementById('close-image-search-modal-btn');
+        const imageSearchInput = document.getElementById('image-search-input');
+        const imageSearchBtn = document.getElementById('image-search-btn');
+        const imageResults = document.getElementById('image-results');
 
         // --- APP STATE ---
         let peer;
@@ -328,7 +365,7 @@
             conn.on('data', data => {
                 if (data.type === 'sync') {
                     boardState = data.state;
-                    connectedUsers = data.users.map(name => ({name})); // Rebuild from names
+                    connectedUsers = data.users.map(name => ({name}));
                     renderBoard();
                     updateUsersUI();
                 } else if (data.type === 'update') {
@@ -362,7 +399,7 @@
             const userNames = connectedUsers.map(u => u.name);
             const data = { type: 'user-list', users: userNames };
             connections.forEach(conn => conn.send(data));
-            updateUsersUI(); // Update host's UI too
+            updateUsersUI();
         }
 
         function updateUsersUI() {
@@ -387,16 +424,28 @@
         }
 
         // --- ELEMENT & DRAWING CREATION ---
-        function addElement(type) {
+        function addElement(type, data = {}) {
             const newElement = {
                 id: `elem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 type: type,
-                content: type === 'sticky-note' ? 'Edit me!' : 'Type something...',
                 x: 100 + (boardState.filter(e => e.type !== 'stroke').length % 5) * 20,
                 y: 100 + (boardState.filter(e => e.type !== 'stroke').length % 5) * 20,
-                width: 200, 
-                height: type === 'sticky-note' ? 200 : 150,
+                ...data
             };
+
+            if (type === 'sticky-note') {
+                newElement.content = 'Edit me!';
+                newElement.width = 200;
+                newElement.height = 200;
+            } else if (type === 'text-box') {
+                newElement.content = 'Type something...';
+                newElement.width = 200;
+                newElement.height = 150;
+            } else if (type === 'image') {
+                newElement.width = 300;
+                newElement.height = 200;
+            }
+
             boardState.push(newElement);
             renderBoard();
             broadcastState();
@@ -439,19 +488,26 @@
             elemDiv.style.width = `${elemData.width}px`;
             elemDiv.style.height = `${elemData.height}px`;
 
-            const textArea = document.createElement('textarea');
-            textArea.value = elemData.content;
-            
-            textArea.addEventListener('input', () => {
-                const targetElement = boardState.find(e => e.id === elemData.id);
-                if (targetElement) {
-                    targetElement.content = textArea.value;
-                    if (targetElement.type === 'sticky-note') {
-                        adjustStickyFontSize(textArea);
+            if (elemData.type === 'image') {
+                const img = document.createElement('img');
+                img.src = elemData.src;
+                img.onerror = () => { img.src = 'https://placehold.co/300x200/eef2f9/333?text=Image+Not+Found'; };
+                elemDiv.appendChild(img);
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = elemData.content;
+                textArea.addEventListener('input', () => {
+                    const targetElement = boardState.find(e => e.id === elemData.id);
+                    if (targetElement) {
+                        targetElement.content = textArea.value;
+                        if (targetElement.type === 'sticky-note') {
+                            adjustStickyFontSize(textArea);
+                        }
+                        broadcastState();
                     }
-                    broadcastState();
-                }
-            });
+                });
+                elemDiv.appendChild(textArea);
+            }
 
             const deleteBtn = document.createElement('div');
             deleteBtn.className = 'delete-btn';
@@ -463,15 +519,14 @@
                 broadcastState();
             });
 
-            elemDiv.appendChild(textArea);
             elemDiv.appendChild(deleteBtn);
             board.appendChild(elemDiv);
 
-            if (elemData.type === 'text-box') {
+            if (elemData.type === 'text-box' || elemData.type === 'image') {
                 resizeObserver.observe(elemDiv);
             }
             if (elemData.type === 'sticky-note') {
-                adjustStickyFontSize(textArea);
+                adjustStickyFontSize(elemDiv.querySelector('textarea'));
             }
         }
 
@@ -596,6 +651,37 @@
             penOptions.querySelector(`[data-color="${color}"]`).classList.add('active');
         }
 
+        // --- IMAGE SEARCH LOGIC ---
+        function searchImages() {
+            const query = imageSearchInput.value.trim();
+            if (!query) {
+                showToast("Please enter a search term.");
+                return;
+            }
+            imageResults.innerHTML = '';
+            
+            // Using Unsplash Source for key-free image searching
+            for (let i = 0; i < 12; i++) {
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'w-full h-32 bg-gray-200 rounded-md overflow-hidden cursor-pointer hover:opacity-75';
+                const img = document.createElement('img');
+                // The random parameter ensures we get different images for each slot
+                const imageUrl = `https://source.unsplash.com/400x300/?${query}&random=${i}`;
+                img.src = imageUrl;
+                img.className = 'w-full h-full object-cover';
+                img.onerror = () => { 
+                    img.parentElement.innerHTML = '<p class="text-xs text-center p-2 text-gray-500">Could not load image.</p>';
+                };
+                imgContainer.appendChild(img);
+                imgContainer.addEventListener('click', () => {
+                    // Use the final redirected URL from the image element's src property
+                    addElement('image', { src: img.src });
+                    imageSearchModal.classList.add('hidden');
+                });
+                imageResults.appendChild(imgContainer);
+            }
+        }
+
         // --- EVENT LISTENERS ---
         nameSubmitBtn.addEventListener('click', () => {
             const name = nameInput.value.trim();
@@ -615,6 +701,7 @@
         startJoinBtn.addEventListener('click', startOrJoinBoard);
         addStickyBtn.addEventListener('click', () => addElement('sticky-note'));
         addTextBtn.addEventListener('click', () => addElement('text-box'));
+        addImageBtn.addEventListener('click', () => imageSearchModal.classList.remove('hidden'));
         toolSelectBtn.addEventListener('click', () => setActiveTool('select'));
         toolPenBtn.addEventListener('click', () => setActiveTool('pen'));
         penOptions.addEventListener('click', (e) => {
@@ -632,6 +719,12 @@
         closeUsersModalBtn.addEventListener('click', () => usersModal.classList.add('hidden'));
         usersModal.addEventListener('click', e => {
             if (e.target === usersModal) usersModal.classList.add('hidden');
+        });
+
+        closeImageSearchModalBtn.addEventListener('click', () => imageSearchModal.classList.add('hidden'));
+        imageSearchBtn.addEventListener('click', searchImages);
+        imageSearchInput.addEventListener('keyup', e => {
+            if (e.key === 'Enter') searchImages();
         });
 
     </script>
