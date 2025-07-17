@@ -126,16 +126,10 @@
         <h1 class="text-2xl font-bold text-gray-800">Blam Joard</h1>
         <div class="flex items-center gap-4">
             <div class="flex items-center gap-2">
-                <label for="share-code" class="text-sm font-medium text-gray-600">Your Share Code:</label>
-                <input type="text" id="share-code" readonly class="bg-gray-100 border border-gray-300 rounded-md px-2 py-1 text-gray-700 w-40" title="Send this code to a friend to collaborate">
-                <button id="copy-code-btn" class="p-2 rounded-md hover:bg-gray-200" title="Copy Code"><i class="fas fa-copy text-gray-600"></i></button>
+                <input type="text" id="board-name-input" placeholder="Enter a Board Name..." class="border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-400 w-48">
+                <button id="start-join-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-4 rounded-md transition-all">Start / Join Board</button>
             </div>
-            <div class="w-px h-8 bg-gray-200"></div>
-            <div class="flex items-center gap-2">
-                <input type="text" id="join-code-input" placeholder="Enter friend's code..." class="border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-400">
-                <button id="connect-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-4 rounded-md transition-all">Connect</button>
-            </div>
-            <div id="connection-status" class="text-sm font-medium text-gray-600">Connecting...</div>
+            <div id="connection-status" class="text-sm font-medium text-gray-600">Enter a name to begin.</div>
         </div>
     </header>
 
@@ -176,10 +170,8 @@
         const board = document.getElementById('board');
         const drawingCanvas = document.getElementById('drawing-canvas');
         const ctx = drawingCanvas.getContext('2d');
-        const shareCodeInput = document.getElementById('share-code');
-        const copyCodeBtn = document.getElementById('copy-code-btn');
-        const joinCodeInput = document.getElementById('join-code-input');
-        const connectBtn = document.getElementById('connect-btn');
+        const boardNameInput = document.getElementById('board-name-input');
+        const startJoinBtn = document.getElementById('start-join-btn');
         const connectionStatus = document.getElementById('connection-status');
         const toolSelectBtn = document.getElementById('tool-select');
         const toolPenBtn = document.getElementById('tool-pen');
@@ -213,38 +205,68 @@
             }, duration);
         }
 
-        // --- INITIALIZATION ---
-        function initializePeer() {
-            // Using the public PeerJS server. For a more stable production app,
-            // you would host your own PeerJS server.
-            // The pingInterval helps keep the connection alive to prevent timeouts.
-            peer = new Peer(undefined, {
+        // --- INITIALIZATION & CONNECTION ---
+        function startOrJoinBoard() {
+            const boardName = boardNameInput.value.trim();
+            if (!boardName) {
+                showToast("Please enter a board name.");
+                return;
+            }
+
+            // Disconnect from any previous session
+            if (peer) {
+                peer.destroy();
+            }
+            
+            connectionStatus.textContent = `Connecting to "${boardName}"...`;
+            connectionStatus.classList.remove('text-green-600', 'text-red-600');
+            connectionStatus.classList.add('text-gray-600');
+
+            // Attempt to become the host for this board name
+            peer = new Peer(boardName, {
                 host: '0.peerjs.com',
                 port: 443,
                 path: '/',
                 pingInterval: 5000 
             });
 
+            // This fires when we successfully become the host
             peer.on('open', id => {
                 myPeerId = id;
-                shareCodeInput.value = id;
-                connectionStatus.textContent = 'Ready to connect!';
+                connectionStatus.textContent = `Board "${id}" created! Waiting for others...`;
                 connectionStatus.classList.remove('text-gray-600', 'text-red-600');
                 connectionStatus.classList.add('text-green-600');
+                boardState = []; // Start with a fresh board
+                renderBoard();
             });
+
+            // This fires when someone connects to us (the host)
             peer.on('connection', conn => {
                 setupConnection(conn);
-                connectionStatus.textContent = `Connected to ${conn.peer.substring(0,6)}...`;
             });
-            peer.on('disconnected', () => {
-                connectionStatus.textContent = 'Connection lost. Reconnecting...';
-                connectionStatus.classList.remove('text-green-600');
-                connectionStatus.classList.add('text-red-600');
-                // PeerJS will automatically try to reconnect
-            });
+
+            // This fires if the board name (ID) is already taken
             peer.on('error', err => {
-                console.error('PeerJS error:', err);
-                showToast(`Error: ${err.message}`, 5000);
+                if (err.type === 'unavailable-id') {
+                    // The ID is taken, so we are a client.
+                    // Destroy the failed host peer and create an anonymous client peer.
+                    peer.destroy();
+                    peer = new Peer({
+                        host: '0.peerjs.com',
+                        port: 443,
+                        path: '/',
+                        pingInterval: 5000 
+                    });
+                    
+                    peer.on('open', () => {
+                        // Our anonymous client peer is ready, now connect to the host.
+                        const conn = peer.connect(boardName);
+                        setupConnection(conn);
+                    });
+                } else {
+                    console.error('PeerJS error:', err);
+                    showToast(`Error: ${err.message}`, 5000);
+                }
             });
         }
 
@@ -263,18 +285,16 @@
             });
         }
 
-        // --- CONNECTION & SYNC ---
-        function connectToPeer(peerId) {
-            if (!peerId) { showToast('Please enter a valid share code.'); return; }
-            const conn = peer.connect(peerId);
-            setupConnection(conn);
-        }
-
         function setupConnection(conn) {
             conn.on('open', () => {
                 connections.push(conn);
-                connectionStatus.textContent = `Connected! (${connections.length} peers)`;
-                if (boardState.length > 0) {
+                connectionStatus.textContent = `Connected to "${conn.peer}"!`;
+                connectionStatus.classList.remove('text-gray-600', 'text-red-600');
+                connectionStatus.classList.add('text-green-600');
+                
+                // If we are the host, send the current state to the new client.
+                // If we are a client, the host will send us the state.
+                if (myPeerId === conn.peer) { // A check to see if we are host
                     conn.send({ type: 'sync', state: boardState });
                 }
             });
@@ -287,6 +307,7 @@
             conn.on('close', () => {
                 connections = connections.filter(c => c.peer !== conn.peer);
                 connectionStatus.textContent = connections.length > 0 ? `Connected! (${connections.length} peers)` : 'Disconnected';
+                showToast(`Peer "${conn.peer.substring(0,6)}..." has disconnected.`);
             });
         }
 
@@ -482,7 +503,6 @@
         function setActiveTool(tool) {
             activeTool = tool;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            // The add buttons don't stay active, so only highlight select/pen
             if (tool === 'select' || tool === 'pen') {
                 document.getElementById(`tool-${tool}`).classList.add('active');
             }
@@ -507,12 +527,7 @@
         }
 
         // --- EVENT LISTENERS ---
-        connectBtn.addEventListener('click', () => connectToPeer(joinCodeInput.value.trim()));
-        copyCodeBtn.addEventListener('click', () => {
-            shareCodeInput.select();
-            document.execCommand('copy');
-            showToast('Share code copied!');
-        });
+        startJoinBtn.addEventListener('click', startOrJoinBoard);
         addStickyBtn.addEventListener('click', () => addElement('sticky-note'));
         addTextBtn.addEventListener('click', () => addElement('text-box'));
         toolSelectBtn.addEventListener('click', () => setActiveTool('select'));
@@ -529,7 +544,6 @@
         window.addEventListener('resize', resizeCanvas);
 
         // --- LET'S GO! ---
-        initializePeer();
         initializeResizeObserver();
         resizeCanvas();
         setActiveTool('select');
