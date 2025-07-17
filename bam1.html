@@ -140,7 +140,10 @@
                     <input type="text" id="board-name-input" placeholder="Enter a Board Name..." class="border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-400 w-48">
                     <button id="start-join-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-4 rounded-md transition-all">Start / Join Board</button>
                 </div>
-                <div id="connection-status" class="text-sm font-medium text-gray-600">Enter a name to begin.</div>
+                <button id="view-users-btn" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-full text-sm flex items-center">
+                    <i class="fas fa-users mr-2"></i>
+                    <span id="user-count">0</span>
+                </button>
             </div>
         </header>
 
@@ -176,6 +179,20 @@
     <!-- Toast Notification Element -->
     <div id="toast"></div>
 
+    <!-- Users Modal -->
+    <div id="users-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-80">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Connected Users</h2>
+                <button id="close-users-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <ul id="users-list" class="space-y-2">
+                <!-- User list will be populated here -->
+            </ul>
+        </div>
+    </div>
+
+
     <script>
         // --- DOM ELEMENTS ---
         const nameModal = document.getElementById('name-modal');
@@ -188,7 +205,11 @@
         const ctx = drawingCanvas.getContext('2d');
         const boardNameInput = document.getElementById('board-name-input');
         const startJoinBtn = document.getElementById('start-join-btn');
-        const connectionStatus = document.getElementById('connection-status');
+        const viewUsersBtn = document.getElementById('view-users-btn');
+        const userCount = document.getElementById('user-count');
+        const usersModal = document.getElementById('users-modal');
+        const closeUsersModalBtn = document.getElementById('close-users-modal-btn');
+        const usersList = document.getElementById('users-list');
         const toolSelectBtn = document.getElementById('tool-select');
         const toolPenBtn = document.getElementById('tool-pen');
         const addStickyBtn = document.getElementById('add-sticky-btn');
@@ -198,9 +219,10 @@
 
         // --- APP STATE ---
         let peer;
-        let myPeerId = null;
         let userName = null;
-        let connections = [];
+        let isHost = false;
+        let connections = []; // Holds connection objects
+        let connectedUsers = []; // Holds user names
         let boardState = [];
         let activeTool = 'select'; // 'select', 'pen'
         let penColor = '#000000';
@@ -232,11 +254,8 @@
 
             if (peer) { peer.destroy(); }
             
-            connectionStatus.textContent = `Connecting to "${boardName}"...`;
-            connectionStatus.classList.remove('text-green-600', 'text-red-600');
-            connectionStatus.classList.add('text-gray-600');
+            showToast(`Connecting to "${boardName}"...`);
 
-            // Attempt to become the host for this board name
             peer = new Peer(boardName, {
                 host: '0.peerjs.com',
                 port: 443,
@@ -244,27 +263,23 @@
                 pingInterval: 5000 
             });
 
-            // This fires when we successfully become the host
             peer.on('open', id => {
-                myPeerId = id;
-                connectionStatus.textContent = `Board "${id}" created! Waiting for others...`;
-                connectionStatus.classList.remove('text-gray-600', 'text-red-600');
-                connectionStatus.classList.add('text-green-600');
+                isHost = true;
+                connectedUsers = [{ name: userName, id: id }];
+                updateUsersUI();
+                showToast(`Board "${id}" created! Waiting for others...`);
                 boardState = [];
                 renderBoard();
             });
 
-            // This fires when someone connects to us (the host)
             peer.on('connection', conn => {
                 setupConnection(conn);
             });
 
-            // This fires if the board name (ID) is already taken
             peer.on('error', err => {
                 if (err.type === 'unavailable-id') {
                     peer.destroy();
-                    // The ID is taken, so we become a client.
-                    // Create an anonymous client peer.
+                    isHost = false;
                     peer = new Peer({
                         host: '0.peerjs.com',
                         port: 443,
@@ -273,7 +288,6 @@
                     });
                     
                     peer.on('open', () => {
-                        // Connect to the host, sending our name in the metadata.
                         const conn = peer.connect(boardName, { metadata: { name: userName } });
                         setupConnection(conn);
                     });
@@ -302,30 +316,37 @@
         function setupConnection(conn) {
             conn.on('open', () => {
                 connections.push(conn);
-                // If I am the host, the metadata contains the client's name.
-                // If I am the client, the peer property is the host's board name.
-                const remoteName = conn.metadata?.name || conn.peer;
-                connectionStatus.textContent = `Connected to "${remoteName}"!`;
-                connectionStatus.classList.remove('text-gray-600', 'text-red-600');
-                connectionStatus.classList.add('text-green-600');
-                showToast(`User "${remoteName}" has joined the board.`);
                 
-                // If we are the host, send the current state to the new client.
-                if (peer.id === myPeerId) { 
-                    conn.send({ type: 'sync', state: boardState });
+                if (isHost) {
+                    const newUserName = conn.metadata?.name || 'Anonymous';
+                    showToast(`User "${newUserName}" has joined.`);
+                    connectedUsers.push({ name: newUserName, id: conn.peer });
+                    broadcastUserList();
+                    conn.send({ type: 'sync', state: boardState, users: connectedUsers.map(u => u.name) });
                 }
             });
             conn.on('data', data => {
-                if (data.type === 'update' || data.type === 'sync') {
+                if (data.type === 'sync') {
+                    boardState = data.state;
+                    connectedUsers = data.users.map(name => ({name})); // Rebuild from names
+                    renderBoard();
+                    updateUsersUI();
+                } else if (data.type === 'update') {
                     boardState = data.state;
                     renderBoard();
+                } else if (data.type === 'user-list') {
+                    connectedUsers = data.users.map(name => ({name}));
+                    updateUsersUI();
                 }
             });
             conn.on('close', () => {
-                connections = connections.filter(c => c.peer !== conn.peer);
-                const remoteName = conn.metadata?.name || conn.peer.substring(0,6)+'...';
-                connectionStatus.textContent = connections.length > 0 ? `Connected! (${connections.length} peers)` : 'Disconnected';
-                showToast(`User "${remoteName}" has left the board.`);
+                if (isHost) {
+                    const remoteUser = connectedUsers.find(u => u.id === conn.peer);
+                    showToast(`User "${remoteUser?.name || 'A user'}" has left.`);
+                    connections = connections.filter(c => c.peer !== conn.peer);
+                    connectedUsers = connectedUsers.filter(u => u.id !== conn.peer);
+                    broadcastUserList();
+                }
             });
         }
 
@@ -333,6 +354,35 @@
             const data = { type: 'update', state: boardState };
             connections.forEach(conn => {
                 if (conn.open) conn.send(data);
+            });
+        }
+        
+        function broadcastUserList() {
+            if (!isHost) return;
+            const userNames = connectedUsers.map(u => u.name);
+            const data = { type: 'user-list', users: userNames };
+            connections.forEach(conn => conn.send(data));
+            updateUsersUI(); // Update host's UI too
+        }
+
+        function updateUsersUI() {
+            if (!userName) return;
+
+            const userNames = connectedUsers.map(u => u.name);
+            
+            viewUsersBtn.classList.remove('hidden');
+            userCount.textContent = userNames.length;
+
+            usersList.innerHTML = '';
+            userNames.forEach(name => {
+                const li = document.createElement('li');
+                li.className = 'text-gray-700 p-2 rounded-md';
+                li.textContent = name;
+                if (name === userName) {
+                    li.textContent += ' (You)';
+                    li.classList.add('font-semibold', 'bg-blue-100');
+                }
+                usersList.appendChild(li);
             });
         }
 
@@ -452,10 +502,12 @@
 
         // --- CANVAS & INTERACTIVITY ---
         function resizeCanvas() {
-            const rect = boardContainer.getBoundingClientRect();
-            drawingCanvas.width = rect.width;
-            drawingCanvas.height = rect.height;
-            renderBoard();
+            if (!mainApp.classList.contains('hidden')) {
+                const rect = boardContainer.getBoundingClientRect();
+                drawingCanvas.width = rect.width;
+                drawingCanvas.height = rect.height;
+                renderBoard();
+            }
         }
 
         function getMousePos(evt) {
@@ -575,6 +627,12 @@
         boardContainer.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
         window.addEventListener('resize', resizeCanvas);
+
+        viewUsersBtn.addEventListener('click', () => usersModal.classList.remove('hidden'));
+        closeUsersModalBtn.addEventListener('click', () => usersModal.classList.add('hidden'));
+        usersModal.addEventListener('click', e => {
+            if (e.target === usersModal) usersModal.classList.add('hidden');
+        });
 
     </script>
 </body>
