@@ -215,12 +215,21 @@
 
         // --- INITIALIZATION ---
         function initializePeer() {
-            peer = new Peer();
+            // Using the public PeerJS server. For a more stable production app,
+            // you would host your own PeerJS server.
+            // The pingInterval helps keep the connection alive to prevent timeouts.
+            peer = new Peer(undefined, {
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/',
+                pingInterval: 5000 
+            });
+
             peer.on('open', id => {
                 myPeerId = id;
                 shareCodeInput.value = id;
                 connectionStatus.textContent = 'Ready to connect!';
-                connectionStatus.classList.remove('text-gray-600');
+                connectionStatus.classList.remove('text-gray-600', 'text-red-600');
                 connectionStatus.classList.add('text-green-600');
             });
             peer.on('connection', conn => {
@@ -473,7 +482,10 @@
         function setActiveTool(tool) {
             activeTool = tool;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`tool-${tool}`).classList.add('active');
+            // The add buttons don't stay active, so only highlight select/pen
+            if (tool === 'select' || tool === 'pen') {
+                document.getElementById(`tool-${tool}`).classList.add('active');
+            }
 
             if (tool === 'pen') {
                 drawingCanvas.style.pointerEvents = 'auto';
