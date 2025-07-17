@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blam Joard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* A calming light blue-gray */
+        }
+        .canvas-container {
+            width: 100%;
+            max-width: 1200px; /* Max width for large screens */
+            aspect-ratio: 16 / 9;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 0.5rem;
+        }
+        .tool-btn.active {
+            background-color: #4a90e2; /* A calming blue */
+            color: white;
+        }
+        .color-btn.active {
+            transform: scale(1.2);
+            box-shadow: 0 0 0 2px white, 0 0 0 4px #4a90e2;
+        }
+        .pen-option.active {
+            background-color: #dbeafe;
+        }
+        /* Custom modal styles for a softer look */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        .modal-content {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="overflow-hidden h-screen flex flex-col items-center justify-center p-2 md:p-4 bg-gray-100">
+
+    <!-- Top Bar -->
+    <header class="w-full max-w-7xl flex items-center justify-between mb-2 px-2">
+        <div class="flex items-center gap-4">
+            <h1 id="jam-title" class="text-xl font-bold text-gray-700 cursor-pointer hover:bg-gray-200 p-2 rounded-lg">Blam Joard</h1>
+        </div>
+        
+        <!-- Frame Navigator -->
+        <div id="frame-bar" class="flex items-center gap-2 bg-white p-1 rounded-full shadow-md">
+            <button id="prev-frame" class="p-2 rounded-full hover:bg-gray-200"><i class="fas fa-chevron-left text-gray-600"></i></button>
+            <div id="frame-indicator" class="text-sm font-medium text-gray-700">1 / 1</div>
+            <button id="next-frame" class="p-2 rounded-full hover:bg-gray-200"><i class="fas fa-chevron-right text-gray-600"></i></button>
+            <button id="add-frame" class="p-2 rounded-full hover:bg-gray-200"><i class="fas fa-plus text-gray-600"></i></button>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button id="share-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full shadow-sm transition-all">
+                <i class="fas fa-user-plus mr-2"></i>Share
+            </button>
+             <div class="text-xs text-gray-500">User ID: <span id="user-id-display"></span></div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow w-full flex items-start justify-center gap-4">
+        <!-- Left Toolbar -->
+        <aside class="bg-white p-2 rounded-full shadow-lg flex flex-col gap-2">
+            <button id="tool-select" class="tool-btn w-12 h-12 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-all" title="Select"><i class="fas fa-mouse-pointer"></i></button>
+            <div id="pen-tool-container" class="relative">
+                <button id="tool-pen" class="tool-btn w-12 h-12 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-all" title="Pen"><i class="fas fa-pen"></i></button>
+                <!-- Pen Options Popover -->
+                <div id="pen-options" class="hidden absolute left-full top-0 ml-2 bg-white p-2 rounded-lg shadow-xl z-20 w-48">
+                    <div class="font-bold text-sm mb-2">Pen Type</div>
+                    <div class="space-y-1">
+                        <button class="pen-option w-full text-left p-2 rounded-md hover:bg-gray-100 flex items-center gap-2" data-pen-type="pen"><i class="fas fa-pen-fancy"></i> Pen</button>
+                        <button class="pen-option w-full text-left p-2 rounded-md hover:bg-gray-100 flex items-center gap-2" data-pen-type="marker"><i class="fas fa-paint-brush"></i> Marker</button>
+                        <button class="pen-option w-full text-left p-2 rounded-md hover:bg-gray-100 flex items-center gap-2" data-pen-type="highlighter"><i class="fas fa-highlighter"></i> Highlighter</button>
+                    </div>
+                    <div class="border-t my-2"></div>
+                    <div class="font-bold text-sm mb-2">Color</div>
+                    <div id="pen-colors" class="grid grid-cols-3 gap-2">
+                        <button class="color-btn w-8 h-8 rounded-full" style="background-color: #000000;" data-color="#000000"></button>
+                        <button class="color-btn w-8 h-8 rounded-full" style="background-color: #4a90e2;" data-color="#4a90e2"></button>
+                        <button class="color-btn w-8 h-8 rounded-full" style="background-color: #50e3c2;" data-color="#50e3c2"></button>
+                        <button class="color-btn w-8 h-8 rounded-full" style="background-color: #f5a623;" data-color="#f5a623"></button>
+                        <button class="color-btn w-8 h-8 rounded-full" style="background-color: #d0021b;" data-color="#d0021b"></button>
+                        <button class="color-btn w-8 h-8 rounded-full border border-gray-300" style="background-color: #ffffff;" data-color="#ffffff"></button>
+                    </div>
+                </div>
+            </div>
+            <button id="tool-sticky" class="tool-btn w-12 h-12 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-all" title="Sticky Note"><i class="fas fa-sticky-note"></i></button>
+            <button id="tool-eraser" class="tool-btn w-12 h-12 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-all" title="Eraser (Coming Soon)"><i class="fas fa-eraser"></i></button>
+            <button id="clear-frame" class="w-12 h-12 rounded-full flex items-center justify-center text-red-500 hover:bg-red-100 transition-all" title="Clear Frame"><i class="fas fa-trash"></i></button>
+        </aside>
+
+        <!-- Canvas Area -->
+        <div id="canvas-container" class="canvas-container relative">
+            <canvas id="main-canvas"></canvas>
+        </div>
+    </main>
+
+    <!-- Sticky Note Modal -->
+    <div id="sticky-note-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div class="modal-content p-6 w-96">
+            <h3 class="text-lg font-bold mb-4">Add Sticky Note</h3>
+            <textarea id="sticky-note-input" class="w-full h-32 p-2 border rounded-md focus:ring-2 focus:ring-blue-400" placeholder="Your note..."></textarea>
+            <div class="flex justify-between items-center mt-4">
+                <div id="sticky-colors" class="flex gap-2">
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #fffb8f;" data-color="#fffb8f"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #b7eb8f;" data-color="#b7eb8f"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #91d5ff;" data-color="#91d5ff"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #ffadd2;" data-color="#ffadd2"></button>
+                </div>
+                <div>
+                    <button id="cancel-sticky-note" class="px-4 py-2 rounded-md text-gray-600 hover:bg-gray-100">Cancel</button>
+                    <button id="save-sticky-note" class="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Share Modal -->
+    <div id="share-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div class="modal-content p-6 w-96">
+            <h3 class="text-lg font-bold mb-4">Share this Blam Joard</h3>
+            <p class="text-sm text-gray-600 mb-2">Anyone with the link can edit. Just share the URL from your browser's address bar.</p>
+            <div class="mt-4 flex justify-end">
+                <button id="close-share-modal" class="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600">Got it</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIGURATION ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-blam-joard';
+        
+        // --- FIREBASE INITIALIZATION ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- DOM ELEMENTS ---
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
+        const toolSelect = document.getElementById('tool-select');
+        const toolPen = document.getElementById('tool-pen');
+        const toolSticky = document.getElementById('tool-sticky');
+        const penOptions = document.getElementById('pen-options');
+        const penColors = document.getElementById('pen-colors');
+        const penTypeButtons = document.querySelectorAll('.pen-option');
+        const stickyNoteModal = document.getElementById('sticky-note-modal');
+        const saveStickyNoteBtn = document.getElementById('save-sticky-note');
+        const cancelStickyNoteBtn = document.getElementById('cancel-sticky-note');
+        const stickyNoteInput = document.getElementById('sticky-note-input');
+        const stickyColors = document.getElementById('sticky-colors');
+        const clearFrameBtn = document.getElementById('clear-frame');
+        const frameIndicator = document.getElementById('frame-indicator');
+        const prevFrameBtn = document.getElementById('prev-frame');
+        const nextFrameBtn = document.getElementById('next-frame');
+        const addFrameBtn = document.getElementById('add-frame');
+        const jamTitleEl = document.getElementById('jam-title');
+        const shareBtn = document.getElementById('share-btn');
+        const shareModal = document.getElementById('share-modal');
+        const closeShareModalBtn = document.getElementById('close-share-modal');
+        const userIdDisplay = document.getElementById('user-id-display');
+
+
+        // --- APP STATE ---
+        let jamState = {};
+        let activeTool = 'select';
+        let penConfig = { type: 'pen', color: '#000000', width: 3 };
+        let stickyConfig = { color: '#fffb8f' };
+        let isDrawing = false;
+        let currentPath = [];
+        let selectedObject = null;
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let currentJamId = null;
+        let currentFrameIndex = 0;
+        let dbRef = null;
+        let unsubscribe = null;
+        let userId = null;
+        let isMyUpdate = false;
+
+        // --- CANVAS SIZING ---
+        function resizeCanvas() {
+            const containerRect = canvasContainer.getBoundingClientRect();
+            canvas.width = 1920;
+            canvas.height = 1080;
+            canvas.style.width = `${containerRect.width}px`;
+            canvas.style.height = `${containerRect.height}px`;
+            renderCanvas();
+        }
+
+        // --- RENDERING ---
+        function renderCanvas() {
+            if (!jamState.frames || !jamState.frames[currentFrameIndex]) return;
+
+            const frame = jamState.frames[currentFrameIndex];
+            const objects = frame.objects || [];
+            
+            // Get transform to scale canvas coordinates to display size
+            const transform = getCanvasTransform();
+            ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background
+            ctx.fillStyle = frame.background || '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Render non-stroke objects first
+            objects.filter(obj => obj.type !== 'stroke').forEach(obj => drawObject(obj));
+
+            // 2. Render stroke objects on top
+            objects.filter(obj => obj.type === 'stroke').forEach(obj => drawObject(obj));
+            
+            // Draw selection handles if an object is selected
+            if (selectedObject) {
+                drawSelectionHandles(selectedObject);
+            }
+        }
+        
+        function drawObject(obj) {
+            switch (obj.type) {
+                case 'stroke':
+                    drawStroke(obj);
+                    break;
+                case 'sticky':
+                    drawStickyNote(obj);
+                    break;
+            }
+        }
+        
+        function drawStroke(obj) {
+            ctx.beginPath();
+            ctx.strokeStyle = obj.color;
+            ctx.lineWidth = obj.width;
+            ctx.globalAlpha = obj.alpha || 1.0;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (obj.points && obj.points.length > 0) {
+                ctx.moveTo(obj.points[0].x, obj.points[0].y);
+                for (let i = 1; i < obj.points.length; i++) {
+                    ctx.lineTo(obj.points[i].x, obj.points[i].y);
+                }
+            }
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawStickyNote(obj) {
+            ctx.save();
+            // Translate context to object center for rotation
+            ctx.translate(obj.x + obj.width / 2, obj.y + obj.height / 2);
+            ctx.rotate(obj.rotation * Math.PI / 180);
+            ctx.translate(-(obj.x + obj.width / 2), -(obj.y + obj.height / 2));
+
+            // Draw shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            ctx.fillRect(obj.x + 5, obj.y + 5, obj.width, obj.height);
+            
+            // Draw note
+            ctx.fillStyle = obj.color;
+            ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+            
+            // Draw text
+            ctx.fillStyle = '#000000';
+            ctx.font = '24px Inter';
+            wrapText(ctx, obj.text, obj.x + 10, obj.y + 30, obj.width - 20, 30);
+            
+            ctx.restore();
+        }
+
+        function drawSelectionHandles(obj) {
+            ctx.save();
+            ctx.translate(obj.x + obj.width / 2, obj.y + obj.height / 2);
+            ctx.rotate(obj.rotation * Math.PI / 180);
+            const x = -obj.width / 2;
+            const y = -obj.height / 2;
+
+            ctx.strokeStyle = '#4a90e2';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, obj.width, obj.height);
+
+            // Draw resize handles
+            const handleSize = 10;
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = '#4a90e2';
+            // Bottom-right handle
+            ctx.fillRect(x + obj.width - handleSize / 2, y + obj.height - handleSize / 2, handleSize, handleSize);
+            ctx.strokeRect(x + obj.width - handleSize / 2, y + obj.height - handleSize / 2, handleSize, handleSize);
+            
+            ctx.restore();
+        }
+
+        function wrapText(context, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            let line = '';
+            for(let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = context.measureText(testLine);
+                const testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    context.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            context.fillText(line, x, y);
+        }
+
+        // --- EVENT HANDLING & TOOLS ---
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+        
+        function getCanvasTransform() {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                scaleX: canvas.width / rect.width,
+                scaleY: canvas.height / rect.height,
+                offsetX: rect.left,
+                offsetY: rect.top
+            };
+        }
+
+        function handleMouseDown(e) {
+            const pos = getCanvasCoords(e);
+            
+            switch (activeTool) {
+                case 'pen':
+                    isDrawing = true;
+                    currentPath = [{ x: pos.x, y: pos.y }];
+                    break;
+                case 'select':
+                    selectedObject = getObjectAtPosition(pos);
+                    if (selectedObject) {
+                        isDragging = true;
+                        dragStart = {
+                            x: pos.x - selectedObject.x,
+                            y: pos.y - selectedObject.y
+                        };
+                        // Bring object to front
+                        bringObjectToFront(selectedObject.id);
+                    }
+                    renderCanvas();
+                    break;
+            }
+        }
+        
+        function handleMouseMove(e) {
+            if (!isDrawing && !isDragging) return;
+            const pos = getCanvasCoords(e);
+
+            if (isDrawing && activeTool === 'pen') {
+                currentPath.push({ x: pos.x, y: pos.y });
+                // Draw live path for responsiveness
+                const tempStroke = { type: 'stroke', points: currentPath, ...getPenAttributes() };
+                renderCanvas(); // Redraw everything
+                drawStroke(tempStroke); // Draw current path on top
+            } else if (isDragging && selectedObject) {
+                selectedObject.x = pos.x - dragStart.x;
+                selectedObject.y = pos.y - dragStart.y;
+                // Live update for responsiveness
+                updateObjectInJam(selectedObject);
+                renderCanvas();
+            }
+        }
+        
+        function handleMouseUp() {
+            if (isDrawing && activeTool === 'pen') {
+                const newStroke = {
+                    id: crypto.randomUUID(),
+                    type: 'stroke',
+                    points: currentPath,
+                    ...getPenAttributes()
+                };
+                addObjectToJam(newStroke);
+            } else if (isDragging && selectedObject) {
+                updateObjectInJam(selectedObject, true); // Final update
+            }
+
+            isDrawing = false;
+            isDragging = false;
+            currentPath = [];
+        }
+
+        function getPenAttributes() {
+            let width, alpha;
+            switch(penConfig.type) {
+                case 'marker': width = 10; alpha = 1.0; break;
+                case 'highlighter': width = 20; alpha = 0.4; break;
+                case 'pen':
+                default: width = 3; alpha = 1.0; break;
+            }
+            return { width, alpha, color: penConfig.color };
+        }
+
+        function getObjectAtPosition(pos) {
+            if (!jamState.frames || !jamState.frames[currentFrameIndex]) return null;
+            const objects = jamState.frames[currentFrameIndex].objects || [];
+            // Iterate backwards to select top-most object
+            for (let i = objects.length - 1; i >= 0; i--) {
+                const obj = objects[i];
+                if (pos.x >= obj.x && pos.x <= obj.x + obj.width &&
+                    pos.y >= obj.y && pos.y <= obj.y + obj.height) {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
+        // --- TOOL/UI SELECTION ---
+        function setActiveTool(tool) {
+            activeTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tool-${tool}`).classList.add('active');
+            selectedObject = null;
+            if (tool !== 'pen') penOptions.classList.add('hidden');
+            renderCanvas();
+        }
+
+        function setPenColor(color) {
+            penConfig.color = color;
+            penColors.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+            penColors.querySelector(`[data-color="${color}"]`).classList.add('active');
+        }
+        
+        function setPenType(type) {
+            penConfig.type = type;
+            penTypeButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.pen-option[data-pen-type="${type}"]`).classList.add('active');
+        }
+        
+        function setStickyColor(color) {
+            stickyConfig.color = color;
+            stickyNoteInput.style.backgroundColor = color;
+            stickyColors.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+            stickyColors.querySelector(`[data-color="${color}"]`).classList.add('active');
+        }
+
+        // --- FIREBASE & DATA SYNC ---
+        async function initJam() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let id = urlParams.get('jam');
+
+            if (id) {
+                currentJamId = id;
+            } else {
+                currentJamId = crypto.randomUUID();
+                const newUrl = `${window.location.pathname}?jam=${currentJamId}`;
+                window.history.replaceState({ path: newUrl }, '', newUrl);
+            }
+            
+            dbRef = doc(db, "artifacts", appId, "public/data/blamjoard", currentJamId);
+            
+            const docSnap = await getDoc(dbRef);
+            if (!docSnap.exists()) {
+                await createNewJam();
+            }
+
+            // Listen for real-time updates
+            unsubscribe = onSnapshot(dbRef, (doc) => {
+                if (isMyUpdate) {
+                    isMyUpdate = false;
+                    return;
+                }
+                jamState = doc.data();
+                updateUIFromState();
+            });
+        }
+
+        async function createNewJam() {
+            const newJam = {
+                title: 'Untitled Blam Joard',
+                owner: userId,
+                frames: [
+                    { background: '#ffffff', objects: [] }
+                ]
+            };
+            await setDoc(dbRef, newJam);
+            jamState = newJam;
+        }
+
+        async function updateFirestore(newData) {
+            isMyUpdate = true;
+            await updateDoc(dbRef, newData);
+        }
+
+        function addObjectToJam(obj) {
+            const objects = jamState.frames[currentFrameIndex].objects || [];
+            objects.push(obj);
+            const updatedFrames = [...jamState.frames];
+            updatedFrames[currentFrameIndex].objects = objects;
+            updateFirestore({ frames: updatedFrames });
+            jamState.frames = updatedFrames; // Optimistic update
+            renderCanvas();
+        }
+
+        function updateObjectInJam(updatedObj, final = false) {
+            const objects = jamState.frames[currentFrameIndex].objects.map(obj => 
+                obj.id === updatedObj.id ? updatedObj : obj
+            );
+            const updatedFrames = [...jamState.frames];
+            updatedFrames[currentFrameIndex].objects = objects;
+            
+            if (final) {
+                updateFirestore({ frames: updatedFrames });
+            }
+            jamState.frames = updatedFrames; // Optimistic update
+        }
+        
+        function bringObjectToFront(objId) {
+            const objects = [...jamState.frames[currentFrameIndex].objects];
+            const objIndex = objects.findIndex(o => o.id === objId);
+            if (objIndex > -1) {
+                const [obj] = objects.splice(objIndex, 1);
+                objects.push(obj);
+                const updatedFrames = [...jamState.frames];
+                updatedFrames[currentFrameIndex].objects = objects;
+                updateFirestore({ frames: updatedFrames });
+                jamState.frames = updatedFrames; // Optimistic update
+                renderCanvas();
+            }
+        }
+
+        function updateUIFromState() {
+            if (!jamState) return;
+            currentFrameIndex = Math.min(currentFrameIndex, jamState.frames.length - 1);
+            frameIndicator.textContent = `${currentFrameIndex + 1} / ${jamState.frames.length}`;
+            jamTitleEl.textContent = jamState.title || 'Untitled Blam Joard';
+            renderCanvas();
+        }
+        
+        // --- EVENT LISTENERS ---
+        window.addEventListener('resize', resizeCanvas);
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        canvas.addEventListener('mouseout', handleMouseUp); // End drawing if mouse leaves canvas
+        canvas.addEventListener('touchstart', handleMouseDown);
+        canvas.addEventListener('touchmove', handleMouseMove);
+        canvas.addEventListener('touchend', handleMouseUp);
+
+        toolSelect.addEventListener('click', () => setActiveTool('select'));
+        toolPen.addEventListener('click', () => {
+            setActiveTool('pen');
+            penOptions.classList.toggle('hidden');
+        });
+        toolSticky.addEventListener('click', () => {
+            stickyNoteModal.classList.remove('hidden');
+            stickyNoteInput.focus();
+        });
+        
+        cancelStickyNoteBtn.addEventListener('click', () => stickyNoteModal.classList.add('hidden'));
+        saveStickyNoteBtn.addEventListener('click', () => {
+            const text = stickyNoteInput.value;
+            if (text.trim()) {
+                const newSticky = {
+                    id: crypto.randomUUID(),
+                    type: 'sticky',
+                    text: text,
+                    x: 200, y: 200, width: 250, height: 250,
+                    rotation: Math.random() * 10 - 5, // slight random rotation
+                    color: stickyConfig.color
+                };
+                addObjectToJam(newSticky);
+                stickyNoteInput.value = '';
+                stickyNoteModal.classList.add('hidden');
+            }
+        });
+
+        penColors.addEventListener('click', (e) => {
+            if (e.target.matches('.color-btn')) {
+                setPenColor(e.target.dataset.color);
+            }
+        });
+        
+        penTypeButtons.forEach(btn => {
+            btn.addEventListener('click', () => setPenType(btn.dataset.penType));
+        });
+        
+        stickyColors.addEventListener('click', (e) => {
+            if (e.target.matches('.color-btn')) {
+                setStickyColor(e.target.dataset.color);
+            }
+        });
+
+        clearFrameBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear everything from this frame?')) {
+                const updatedFrames = [...jamState.frames];
+                updatedFrames[currentFrameIndex].objects = [];
+                updateFirestore({ frames: updatedFrames });
+                jamState.frames = updatedFrames;
+                renderCanvas();
+            }
+        });
+        
+        addFrameBtn.addEventListener('click', () => {
+            if (jamState.frames.length >= 20) {
+                alert("You've reached the 20 frame limit!");
+                return;
+            }
+            const updatedFrames = [...jamState.frames, { background: '#ffffff', objects: [] }];
+            currentFrameIndex = updatedFrames.length - 1;
+            updateFirestore({ frames: updatedFrames }).then(updateUIFromState);
+        });
+
+        prevFrameBtn.addEventListener('click', () => {
+            if (currentFrameIndex > 0) {
+                currentFrameIndex--;
+                updateUIFromState();
+            }
+        });
+
+        nextFrameBtn.addEventListener('click', () => {
+            if (currentFrameIndex < jamState.frames.length - 1) {
+                currentFrameIndex++;
+                updateUIFromState();
+            }
+        });
+
+        jamTitleEl.addEventListener('click', () => {
+            const newTitle = prompt("Enter new Blam Joard title:", jamState.title);
+            if (newTitle && newTitle.trim() !== "") {
+                updateFirestore({ title: newTitle });
+                jamState.title = newTitle; // optimistic
+                jamTitleEl.textContent = newTitle;
+            }
+        });
+        
+        shareBtn.addEventListener('click', () => shareModal.classList.remove('hidden'));
+        closeShareModalBtn.addEventListener('click', () => shareModal.classList.add('hidden'));
+
+        // --- INITIALIZATION ---
+        async function main() {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    userIdDisplay.textContent = userId.substring(0, 8) + '...';
+                    await initJam();
+                    resizeCanvas();
+                    setActiveTool('select');
+                    setPenColor('#000000');
+                    setPenType('pen');
+                    setStickyColor('#fffb8f');
+                }
+            });
+            
+            const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            if (authToken) {
+                try {
+                    await signInWithCustomToken(auth, authToken);
+                } catch (error) {
+                    console.error("Error signing in with custom token, falling back to anonymous", error);
+                    await signInAnonymously(auth);
+                }
+            } else {
+                await signInAnonymously(auth);
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>
