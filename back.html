@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hours For Shelby</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -123,8 +124,9 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex justify-center">
+                    <div class="flex justify-center gap-4">
                          <button id="turn-in-hours-btn" class="btn btn-primary font-bold py-3 px-8 text-lg">Turn In Hours</button>
+                         <button id="view-stats-btn" class="btn btn-secondary font-bold py-3 px-8 text-lg">View Stats</button>
                     </div>
                 </div>
 
@@ -201,6 +203,26 @@
         </div>
     </div>
 
+    <div id="stats-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-3xl m-4 max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Historical Stats</h2>
+                <button id="close-stats-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div class="lg:col-span-2">
+                    <canvas id="weekly-hours-chart"></canvas>
+                </div>
+                <div>
+                    <canvas id="type-breakdown-chart"></canvas>
+                </div>
+                 <div id="stats-no-data-message" class="text-center text-secondary py-8 hidden">
+                    <p>Log some more hours to see your stats here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div id="confirm-modal" class="modal-backdrop">
         <div class="modal-content card w-full max-w-sm m-4 p-6 text-center">
             <h3 id="confirm-message" class="text-lg font-medium mb-6">Are you sure?</h3>
@@ -285,6 +307,13 @@
             const confirmCoreBtn = document.getElementById('confirm-core-btn');
             const clockOutCancelBtn = document.getElementById('clock-out-cancel-btn');
             const backgroundContainer = document.getElementById('background-animation-container');
+            const viewStatsBtn = document.getElementById('view-stats-btn');
+            const statsModal = document.getElementById('stats-modal');
+            const closeStatsModalBtn = document.getElementById('close-stats-modal-btn');
+            const weeklyHoursCtx = document.getElementById('weekly-hours-chart').getContext('2d');
+            const typeBreakdownCtx = document.getElementById('type-breakdown-chart').getContext('2d');
+            const statsNoDataMessage = document.getElementById('stats-no-data-message');
+
 
             // --- STATE MANAGEMENT ---
             let currentDate = new Date();
@@ -294,6 +323,8 @@
             let modalHourType = 'CORE';
             let onConfirmCallback = null;
             let notificationTimeout;
+            let weeklyChartInstance = null;
+            let typeChartInstance = null;
             
             // --- MESSAGES ---
             const clockInMessages = [
@@ -456,7 +487,132 @@
                 }
                 summaryPayPeriod.textContent = `${periodHours.toFixed(2)}h`;
             }
+
+            // --- STATS & VISUALIZATION ---
+            function getStartOfWeek(d) {
+                const date = new Date(d);
+                const day = date.getDay();
+                const diff = date.getDate() - day; // 0 for Sunday
+                return new Date(date.setDate(diff));
+            }
+
+            function processWeeklyHours() {
+                const weeklyData = {};
+                const today = new Date();
+                const twelveWeeksAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 12 * 7);
+
+                for (const dateStr in timeData) {
+                    const entryDate = new Date(`${dateStr}T00:00:00`);
+                    if (entryDate < twelveWeeksAgo) continue;
+
+                    const weekStartDate = getStartOfWeek(entryDate);
+                    const weekKey = getDateString(weekStartDate);
+
+                    if (!weeklyData[weekKey]) {
+                        weeklyData[weekKey] = 0;
+                    }
+                    weeklyData[weekKey] += calculateHours(dateStr);
+                }
+
+                const sortedWeeks = Object.keys(weeklyData).sort((a, b) => new Date(a) - new Date(b));
+                const labels = sortedWeeks.map(key => {
+                    const date = new Date(`${key}T00:00:00`);
+                    return `Week of ${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
+                });
+                const data = sortedWeeks.map(key => weeklyData[key]);
+
+                return { labels, data };
+            }
+
+            function processTypeBreakdown() {
+                const typeData = { CORE: 0, ACAP: 0 };
+                const currentYear = new Date().getFullYear();
+
+                for (const dateStr in timeData) {
+                    if (new Date(dateStr).getFullYear() !== currentYear) continue;
+
+                    const entry = timeData[dateStr];
+                    if (entry && entry.type && (entry.type === 'CORE' || entry.type === 'ACAP')) {
+                        typeData[entry.type] += calculateHours(dateStr);
+                    }
+                }
+                return {
+                    labels: Object.keys(typeData),
+                    data: Object.values(typeData)
+                };
+            }
             
+            function renderCharts() {
+                if (weeklyChartInstance) weeklyChartInstance.destroy();
+                if (typeChartInstance) typeChartInstance.destroy();
+
+                const weeklyHours = processWeeklyHours();
+                const typeBreakdown = processTypeBreakdown();
+
+                const hasData = weeklyHours.data.length > 0 || typeBreakdown.data.some(d => d > 0);
+                statsNoDataMessage.classList.toggle('hidden', hasData);
+
+
+                const accent1 = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary');
+                const accent2 = getComputedStyle(document.documentElement).getPropertyValue('--accent-secondary');
+                const textPrimary = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
+                const textSecondary = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary');
+
+                Chart.defaults.font.family = "'Inter', sans-serif";
+                Chart.defaults.color = textSecondary;
+
+                if(weeklyHours.data.length > 0) {
+                    weeklyChartInstance = new Chart(weeklyHoursCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: weeklyHours.labels,
+                            datasets: [{
+                                label: 'Hours Logged',
+                                data: weeklyHours.data,
+                                backgroundColor: accent1,
+                                borderRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false },
+                                title: { display: true, text: 'Hours per Week (Last 12 Weeks)', color: textPrimary, font: { size: 16 } }
+                            },
+                            scales: {
+                                y: { grid: { color: textSecondary + '30' } },
+                                x: { grid: { display: false } }
+                            }
+                        }
+                    });
+                }
+                
+                if(typeBreakdown.data.some(d => d > 0)) {
+                    typeChartInstance = new Chart(typeBreakdownCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: typeBreakdown.labels,
+                            datasets: [{
+                                label: 'Hour Breakdown',
+                                data: typeBreakdown.data,
+                                backgroundColor: [accent1, accent2],
+                                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary'),
+                                borderWidth: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            cutout: '60%',
+                            plugins: {
+                                legend: { position: 'bottom' },
+                                title: { display: true, text: 'Hour Type Breakdown (This Year)', color: textPrimary, font: { size: 16 } }
+                            }
+                        }
+                    });
+                }
+            }
+
+
             // --- MODALS, NOTIFICATIONS, STORAGE, & TIMESHEET ---
             function getDayWithSuffix(d) {
                 const day = d.getDate();
@@ -521,6 +677,11 @@
             turnInHoursBtn.addEventListener('click', generateAndShowTimesheet);
             closeTimesheetModalBtn.addEventListener('click', () => timesheetModal.classList.remove('active'));
             copyTimesheetBtn.addEventListener('click', () => { navigator.clipboard.writeText(timesheetOutput.value).then(() => { copyTimesheetBtn.textContent = 'Copied!'; setTimeout(() => { copyTimesheetBtn.textContent = 'Copy Timesheet'; }, 2000); }); });
+            viewStatsBtn.addEventListener('click', () => {
+                renderCharts();
+                statsModal.classList.add('active');
+            });
+            closeStatsModalBtn.addEventListener('click', () => statsModal.classList.remove('active'));
             
             // Clock In/Out Listeners
             clockInBtn.addEventListener('click', () => {
