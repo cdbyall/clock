@@ -3,19 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blam Joard (P2P)</title>
+    <title>Bam Joard (P2P)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat&family=Lato&family=Montserrat&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- PeerJS library for WebRTC -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- html2canvas for exporting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #eef2f9; /* A very light, calming blue */
+            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
         }
         #board-container {
             position: relative;
+            touch-action: none; /* Prevents scrolling while interacting with the board */
         }
         #board, #drawing-canvas {
             position: absolute;
@@ -36,13 +42,15 @@
         }
         .joard-element {
             position: absolute;
-            padding: 1rem;
             border-radius: 0.5rem;
             cursor: move;
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Hide overflow for resize logic */
             z-index: 2; /* Above the board background */
+            border: 2px solid transparent;
+        }
+        .joard-element.locked {
+            cursor: not-allowed;
         }
         .joard-element textarea {
             background: transparent;
@@ -54,30 +62,47 @@
             padding: 0;
             margin: 0;
             font-family: inherit;
+            font-size: inherit;
             color: #1f2937;
-            flex-grow: 1;
-            line-height: 1.4;
+            line-height: 1.2; 
+            overflow: hidden;
+            cursor: text;
+        }
+        .joard-element textarea:disabled {
+            cursor: not-allowed;
         }
         .joard-element.sticky-note {
-            background-color: #fef9c3; /* Soothing yellow */
+            padding: 1rem;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            resize: none;
         }
         .joard-element.text-box {
+            padding: 0.5rem;
              background-color: transparent;
-             border: 2px dashed transparent;
-             resize: both;
         }
-        .joard-element.text-box:hover {
+        .joard-element.text-box:not(.selected):hover {
+            border-style: dashed;
             border-color: #9ca3af;
         }
-        .delete-btn {
+        .joard-element.image {
+            padding: 0;
+            background-color: #fff;
+            overflow: hidden;
+        }
+        .joard-element.image img {
+            width: 100%;
+            height: 100%;
+            object-fit: fill; 
+        }
+        .joard-element.dot {
+            padding: 0;
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+        .context-btn {
             position: absolute;
-            top: -10px;
-            right: -10px;
-            width: 24px;
-            height: 24px;
-            background: #ef4444;
+            width: 28px;
+            height: 28px;
+            background: #4a5568;
             color: white;
             border-radius: 50%;
             display: flex;
@@ -87,187 +112,489 @@
             opacity: 0;
             transition: opacity 0.2s;
             z-index: 11;
+            visibility: hidden;
+            /* START: Fixed icon scaling issue */
+            font-size: 14px;
+            /* END: Fixed icon scaling issue */
         }
-        .joard-element:hover .delete-btn {
+        /* START: Fixed icon position and clipping issue */
+        .delete-btn { top: 8px; right: 8px; background-color: #ef4444; }
+        .lock-btn { top: 8px; right: 44px; }
+        /* END: Fixed icon position and clipping issue */
+        
+        .joard-element:hover .context-btn,
+        .joard-element.selected .context-btn {
             opacity: 1;
+            visibility: visible;
+        }
+        .joard-element.locked:hover .delete-btn,
+        .joard-element.locked.selected .delete-btn {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            right: -10px;
+            bottom: -10px;
+            background: #3b82f6;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: nwse-resize;
+            visibility: hidden;
+            z-index: 12;
+        }
+        .joard-element.selected .resize-handle {
+            visibility: visible;
+        }
+        .joard-element.selected {
+            border: 2px solid #3b82f6 !important;
         }
         .tool-btn.active {
             background-color: #dbeafe;
             box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
         }
-        .color-btn.active {
-            transform: scale(1.2);
+        .color-btn.active, .font-btn.active, .size-btn.active {
+            transform: scale(1.1);
             box-shadow: 0 0 0 2px white, 0 0 0 4px #4a90e2;
+        }
+        /* Toast Notification */
+        #toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 8px;
+            background-color: #2d3748;
+            color: white;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.5s, top 0.5s;
+        }
+        #toast.show {
+            top: 40px;
+            opacity: 1;
+        }
+        /* Presentation Mode */
+        body.presentation-mode #main-app > header,
+        body.presentation-mode #main-app > aside {
+            display: none;
         }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col p-4 gap-4">
+<body class="h-screen w-screen flex flex-col p-2 sm:p-4 gap-4">
 
-    <!-- Header & Connection UI -->
-    <header class="flex-shrink-0 flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
-        <h1 class="text-2xl font-bold text-gray-800">Blam Joard</h1>
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2">
-                <label for="share-code" class="text-sm font-medium text-gray-600">Your Share Code:</label>
-                <input type="text" id="share-code" readonly class="bg-gray-100 border border-gray-300 rounded-md px-2 py-1 text-gray-700 w-40" title="Send this code to a friend to collaborate">
-                <button id="copy-code-btn" class="p-2 rounded-md hover:bg-gray-200" title="Copy Code"><i class="fas fa-copy text-gray-600"></i></button>
+    <!-- Name Entry Modal -->
+    <div id="name-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Welcome to Bam Joard!</h2>
+            <p class="text-gray-600 mb-6">What's your name?</p>
+            <input type="text" id="name-input" placeholder="Enter your name..." class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-400">
+            <button id="name-submit-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all">Continue</button>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden h-full w-full flex flex-col gap-4">
+        <!-- Header & Connection UI -->
+        <header class="flex-shrink-0 flex items-center justify-between bg-white p-3 rounded-lg shadow-sm gap-4">
+            <h1 class="text-2xl font-bold text-gray-800 hidden sm:block">Bam Joard</h1>
+            
+            <div id="frame-bar" class="hidden flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                <button id="prev-frame-btn" title="Previous Frame" class="p-2 w-9 h-9 rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div id="frame-indicator" class="text-sm font-medium text-slate-700 px-4 py-1">1 / 1</div>
+                <button id="next-frame-btn" title="Next Frame" class="p-2 w-9 h-9 rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <div class="w-px h-6 bg-slate-200 mx-1"></div>
+                <button id="add-frame-btn" title="Add Frame" class="p-2 w-9 h-9 rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-plus"></i>
+                </button>
             </div>
+
+            <div class="flex items-center gap-2 sm:gap-4">
+                <button id="export-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold p-2 rounded-lg flex items-center gap-2" title="Export as PNG"><i class="fas fa-download"></i></button>
+                <button id="present-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold p-2 rounded-lg flex items-center gap-2" title="Presentation Mode"><i class="fas fa-play"></i></button>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="board-name-input" placeholder="Board Name..." class="border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-400 w-32 sm:w-48">
+                    <button id="start-join-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-3 rounded-md transition-all">Go</button>
+                </div>
+                <button id="view-users-btn" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-3 rounded-full text-sm flex items-center">
+                    <i class="fas fa-users sm:mr-2"></i>
+                    <span id="user-count" class="hidden sm:inline">0</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Board Area -->
+        <main id="board-container" class="flex-grow bg-white rounded-lg shadow-inner">
+            <div id="board"></div>
+            <canvas id="drawing-canvas"></canvas>
+        </main>
+
+        <!-- Toolbar -->
+        <aside class="flex-shrink-0 flex items-center justify-center gap-2 bg-white p-2 rounded-lg shadow-sm relative z-20">
+            <button id="undo-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50" title="Undo"><i class="fas fa-undo"></i></button>
+            <button id="redo-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50" title="Redo"><i class="fas fa-redo"></i></button>
             <div class="w-px h-8 bg-gray-200"></div>
-            <div class="flex items-center gap-2">
-                <input type="text" id="join-code-input" placeholder="Enter friend's code..." class="border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-400">
-                <button id="connect-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-4 rounded-md transition-all">Connect</button>
+            <button id="tool-select" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Select"><i class="fas fa-mouse-pointer"></i></button>
+            <button id="tool-pen" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Draw"><i class="fas fa-pen"></i></button>
+            <button id="tool-sticky" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Sticky Note"><i class="fas fa-sticky-note"></i></button>
+            <button id="tool-text" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Text"><i class="fas fa-font"></i></button>
+            <button id="add-image-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Image"><i class="fas fa-image"></i></button>
+            <button id="tool-dot" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Sticker"><i class="fas fa-circle"></i></button>
+            <button id="templates-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Templates"><i class="fas fa-th-large"></i></button>
+            <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+            
+            <!-- Contextual Tool Options -->
+            <div id="context-options-container" class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-white rounded-lg shadow-md z-30">
+                <div id="pen-options" class="hidden items-center gap-2">
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #000000;" data-color="#000000"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #22c55e;" data-color="#22c55e"></button>
+                </div>
+                <div id="sticky-options" class="hidden items-center gap-2">
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #fef9c3;" data-color="#fef9c3"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #dcfce7;" data-color="#dcfce7"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #dbeafe;" data-color="#dbeafe"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #fce7f3;" data-color="#fce7f3"></button>
+                </div>
+                <div id="text-options" class="hidden items-center gap-2">
+                    <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Inter" style="font-family: 'Inter', sans-serif;">Aa</button>
+                    <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Lato" style="font-family: 'Lato', sans-serif;">Aa</button>
+                    <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Montserrat" style="font-family: 'Montserrat', sans-serif;">Aa</button>
+                    <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Caveat" style="font-family: 'Caveat', cursive; font-size: 1.5rem;">Aa</button>
+                </div>
+                 <div id="dot-options" class="hidden items-center gap-2">
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #22c55e;" data-color="#22c55e"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #f59e0b;" data-color="#f59e0b"></button>
+                </div>
             </div>
-            <div id="connection-status" class="text-sm font-medium text-green-600"></div>
-        </div>
-    </header>
+        </aside>
+    </div>
+    
+    <!-- Toast Notification Element -->
+    <div id="toast"></div>
 
-    <!-- Toolbar -->
-    <aside class="flex-shrink-0 flex items-center justify-center gap-2 bg-white p-2 rounded-lg shadow-sm">
-        <button id="tool-select" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2" title="Select and Move">
-            <i class="fas fa-mouse-pointer text-gray-600"></i>
-        </button>
-        <button id="tool-pen" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2" title="Draw">
-            <i class="fas fa-pen text-gray-600"></i>
-        </button>
-        <button id="add-sticky-btn" class="tool-btn bg-white hover:bg-yellow-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
-            <i class="fas fa-sticky-note text-yellow-500"></i>
-        </button>
-        <button id="add-text-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
-            <i class="fas fa-font text-gray-600"></i>
-        </button>
-        <div id="pen-options" class="hidden items-center gap-2 ml-2 border-l pl-2">
-            <button class="color-btn w-6 h-6 rounded-full" style="background-color: #000000;" data-color="#000000"></button>
-            <button class="color-btn w-6 h-6 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
-            <button class="color-btn w-6 h-6 rounded-full" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
-            <button class="color-btn w-6 h-6 rounded-full" style="background-color: #22c55e;" data-color="#22c55e"></button>
+    <!-- Users Modal -->
+    <div id="users-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-xs">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Connected Users</h2>
+                <button id="close-users-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <ul id="users-list" class="space-y-2">
+                <!-- User list will be populated here -->
+            </ul>
         </div>
-    </aside>
-
-    <!-- Main Board Area -->
-    <main id="board-container" class="flex-grow bg-white rounded-lg shadow-inner">
-        <div id="board"></div>
-        <canvas id="drawing-canvas"></canvas>
-    </main>
+    </div>
+    
+    <!-- Templates Modal -->
+    <div id="templates-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-4xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Choose a Calming Template</h2>
+                <button id="close-templates-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div id="templates-list" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Templates will be populated here -->
+            </div>
+        </div>
+    </div>
 
     <script>
         // --- DOM ELEMENTS ---
+        const nameModal = document.getElementById('name-modal');
+        const nameInput = document.getElementById('name-input');
+        const nameSubmitBtn = document.getElementById('name-submit-btn');
+        const mainApp = document.getElementById('main-app');
         const boardContainer = document.getElementById('board-container');
         const board = document.getElementById('board');
         const drawingCanvas = document.getElementById('drawing-canvas');
         const ctx = drawingCanvas.getContext('2d');
-        const shareCodeInput = document.getElementById('share-code');
-        const copyCodeBtn = document.getElementById('copy-code-btn');
-        const joinCodeInput = document.getElementById('join-code-input');
-        const connectBtn = document.getElementById('connect-btn');
-        const connectionStatus = document.getElementById('connection-status');
+        const boardNameInput = document.getElementById('board-name-input');
+        const startJoinBtn = document.getElementById('start-join-btn');
+        const viewUsersBtn = document.getElementById('view-users-btn');
+        const userCount = document.getElementById('user-count');
+        const usersModal = document.getElementById('users-modal');
+        const closeUsersModalBtn = document.getElementById('close-users-modal-btn');
+        const usersList = document.getElementById('users-list');
+        const undoBtn = document.getElementById('undo-btn');
+        const redoBtn = document.getElementById('redo-btn');
         const toolSelectBtn = document.getElementById('tool-select');
         const toolPenBtn = document.getElementById('tool-pen');
-        const addStickyBtn = document.getElementById('add-sticky-btn');
-        const addTextBtn = document.getElementById('add-text-btn');
+        const toolStickyBtn = document.getElementById('tool-sticky');
+        const toolTextBtn = document.getElementById('tool-text');
+        const toolDotBtn = document.getElementById('tool-dot');
+        const addImageBtn = document.getElementById('add-image-btn');
+        const imageUploadInput = document.getElementById('image-upload-input');
+        const templatesBtn = document.getElementById('templates-btn');
+        const templatesModal = document.getElementById('templates-modal');
+        const closeTemplatesModalBtn = document.getElementById('close-templates-modal-btn');
+        const templatesList = document.getElementById('templates-list');
+        const exportBtn = document.getElementById('export-btn');
+        const presentBtn = document.getElementById('present-btn');
+        const contextOptionsContainer = document.getElementById('context-options-container');
         const penOptions = document.getElementById('pen-options');
+        const stickyOptions = document.getElementById('sticky-options');
+        const textOptions = document.getElementById('text-options');
+        const dotOptions = document.getElementById('dot-options');
+        const toast = document.getElementById('toast');
+        const frameBar = document.getElementById('frame-bar');
+        const frameIndicator = document.getElementById('frame-indicator');
+        const prevFrameBtn = document.getElementById('prev-frame-btn');
+        const nextFrameBtn = document.getElementById('next-frame-btn');
+        const addFrameBtn = document.getElementById('add-frame-btn');
 
         // --- APP STATE ---
         let peer;
-        let myPeerId = null;
-        let connections = [];
-        let boardState = [];
-        let activeTool = 'select'; // 'select', 'pen'
+        let userName = null;
+        let isHost = false;
+        let connections = []; // Holds connection objects
+        let connectedUsers = []; // Holds user names
+        let jamState = {
+            frames: [[]], // An array of frames, where each frame is an array of objects
+            currentFrameIndex: 0
+        };
+        let activeTool = 'select'; // 'select', 'pen', 'adding-sticky', 'adding-text', 'adding-dot'
         let penColor = '#000000';
+        let stickyColor = '#fef9c3';
+        let textFont = 'Inter';
+        let dotColor = '#ef4444';
         let isDrawing = false;
         let currentPath = [];
         
-        // --- DRAG STATE ---
-        let activeElement = null;
+        // --- HISTORY STATE ---
+        let history = [];
+        let redoStack = [];
+        
+        // --- INTERACTION STATE ---
+        let selectedElementId = null;
         let isDragging = false;
+        let isResizing = false;
         let initialPos = { x: 0, y: 0 };
-        let resizeObserver;
+        let initialElementState = { x: 0, y: 0, width: 0, height: 0 };
 
-        // --- INITIALIZATION ---
-        function initializePeer() {
-            peer = new Peer();
-            peer.on('open', id => {
-                myPeerId = id;
-                shareCodeInput.value = id;
+        // --- UI UTILITIES ---
+        function showToast(message, duration = 3000) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        // --- HISTORY MANAGEMENT ---
+        function recordHistory() {
+            history.push(JSON.stringify(jamState));
+            redoStack = []; // Clear redo stack on new action
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (history.length === 0) return;
+            redoStack.push(JSON.stringify(jamState));
+            jamState = JSON.parse(history.pop());
+            renderBoard();
+            broadcastState();
+            updateUndoRedoButtons();
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            history.push(JSON.stringify(jamState));
+            jamState = JSON.parse(redoStack.pop());
+            renderBoard();
+            broadcastState();
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            undoBtn.disabled = history.length === 0;
+            redoBtn.disabled = redoStack.length === 0;
+        }
+
+        // --- INITIALIZATION & CONNECTION ---
+        function startOrJoinBoard() {
+            const boardName = boardNameInput.value.trim();
+            if (!boardName) {
+                showToast("Please enter a board name.");
+                return;
+            }
+
+            if (peer) { peer.destroy(); }
+            
+            showToast(`Connecting to "${boardName}"...`);
+
+            peer = new Peer(boardName, {
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/',
+                pingInterval: 5000 
             });
+
+            peer.on('open', id => {
+                isHost = true;
+                connectedUsers = [{ name: userName, id: id }];
+                updateUsersUI();
+                showToast(`Board "${id}" created! Waiting for others...`);
+                jamState = { frames: [[]], currentFrameIndex: 0 };
+                history = [];
+                redoStack = [];
+                updateUndoRedoButtons();
+                renderBoard();
+            });
+
             peer.on('connection', conn => {
                 setupConnection(conn);
-                connectionStatus.textContent = `Connected to ${conn.peer.substring(0,6)}...`;
             });
-            peer.on('error', err => {
-                console.error('PeerJS error:', err);
-                alert(`An error occurred: ${err.message}. Please refresh.`);
-            });
-        }
 
-        function initializeResizeObserver() {
-            resizeObserver = new ResizeObserver(entries => {
-                for (let entry of entries) {
-                    const id = entry.target.id;
-                    const targetElement = boardState.find(e => e.id === id);
-                    if (targetElement) {
-                        // Use requestAnimationFrame to avoid "ResizeObserver loop limit exceeded" error
-                        window.requestAnimationFrame(() => {
-                            targetElement.width = entry.contentRect.width;
-                            targetElement.height = entry.contentRect.height;
-                            // Only broadcast after resizing stops (on mouseup)
-                        });
-                    }
+            peer.on('error', err => {
+                if (err.type === 'unavailable-id') {
+                    peer.destroy();
+                    isHost = false;
+                    peer = new Peer({
+                        host: '0.peerjs.com',
+                        port: 443,
+                        path: '/',
+                        pingInterval: 5000 
+                    });
+                    
+                    peer.on('open', () => {
+                        const conn = peer.connect(boardName, { metadata: { name: userName } });
+                        setupConnection(conn);
+                    });
+                } else {
+                    console.error('PeerJS error:', err);
+                    showToast(`Error: ${err.message}`, 5000);
                 }
             });
-        }
-
-        // --- CONNECTION & SYNC ---
-        function connectToPeer(peerId) {
-            if (!peerId) { alert('Please enter a valid share code.'); return; }
-            const conn = peer.connect(peerId);
-            setupConnection(conn);
         }
 
         function setupConnection(conn) {
             conn.on('open', () => {
                 connections.push(conn);
-                connectionStatus.textContent = `Connected! (${connections.length} peers)`;
-                if (boardState.length > 0) {
-                    conn.send({ type: 'sync', state: boardState });
+                
+                if (isHost) {
+                    const newUserName = conn.metadata?.name || 'Anonymous';
+                    showToast(`User "${newUserName}" has joined.`);
+                    connectedUsers.push({ name: newUserName, id: conn.peer });
+                    broadcastUserList();
+                    conn.send({ type: 'sync', state: jamState, users: connectedUsers.map(u => u.name) });
                 }
             });
             conn.on('data', data => {
-                if (data.type === 'update' || data.type === 'sync') {
-                    boardState = data.state;
+                if (data.type === 'sync') {
+                    jamState = data.state;
+                    connectedUsers = data.users.map(name => ({name}));
+                    history = [];
+                    redoStack = [];
+                    updateUndoRedoButtons();
                     renderBoard();
+                    updateUsersUI();
+                } else if (data.type === 'update') {
+                    jamState = data.state;
+                    renderBoard();
+                } else if (data.type === 'user-list') {
+                    connectedUsers = data.users.map(name => ({name}));
+                    updateUsersUI();
                 }
             });
             conn.on('close', () => {
-                connections = connections.filter(c => c.peer !== conn.peer);
-                connectionStatus.textContent = connections.length > 0 ? `Connected! (${connections.length} peers)` : '';
+                if (isHost) {
+                    const remoteUser = connectedUsers.find(u => u.id === conn.peer);
+                    showToast(`User "${remoteUser?.name || 'A user'}" has left.`);
+                    connections = connections.filter(c => c.peer !== conn.peer);
+                    connectedUsers = connectedUsers.filter(u => u.id !== conn.peer);
+                    broadcastUserList();
+                }
             });
         }
 
         function broadcastState() {
-            const data = { type: 'update', state: boardState };
+            const data = { type: 'update', state: jamState };
             connections.forEach(conn => {
                 if (conn.open) conn.send(data);
             });
         }
+        
+        function broadcastUserList() {
+            if (!isHost) return;
+            const userNames = connectedUsers.map(u => u.name);
+            const data = { type: 'user-list', users: userNames };
+            connections.forEach(conn => conn.send(data));
+            updateUsersUI();
+        }
+
+        function updateUsersUI() {
+            if (!userName) return;
+
+            const userNames = connectedUsers.map(u => u.name);
+            
+            viewUsersBtn.classList.remove('hidden');
+            userCount.textContent = userNames.length;
+
+            usersList.innerHTML = '';
+            userNames.forEach(name => {
+                const li = document.createElement('li');
+                li.className = 'text-gray-700 p-2 rounded-md';
+                li.textContent = name;
+                if (name === userName) {
+                    li.textContent += ' (You)';
+                    li.classList.add('font-semibold', 'bg-blue-100');
+                }
+                usersList.appendChild(li);
+            });
+        }
 
         // --- ELEMENT & DRAWING CREATION ---
-        function addElement(type) {
+        function addElement(type, data = {}) {
+            recordHistory();
             const newElement = {
                 id: `elem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 type: type,
-                content: type === 'sticky-note' ? 'Edit me!' : 'Type something...',
-                x: 100 + (boardState.filter(e => e.type !== 'stroke').length % 5) * 20,
-                y: 100 + (boardState.filter(e => e.type !== 'stroke').length % 5) * 20,
-                width: 200, 
-                height: type === 'sticky-note' ? 200 : 150, // Sticky notes are square
+                x: data.x || 100,
+                y: data.y || 100,
+                locked: false,
+                ...data
             };
-            boardState.push(newElement);
+
+            if (type === 'sticky-note') {
+                newElement.content = 'Edit me!';
+                newElement.width = 200;
+                newElement.height = 200;
+                newElement.color = data.color || '#fef9c3';
+            } else if (type === 'text-box') {
+                newElement.content = '';
+                newElement.width = 200;
+                newElement.height = 60; // Larger initial height
+                newElement.fontFamily = data.fontFamily || 'Inter';
+            } else if (type === 'image') {
+                newElement.width = 300;
+                newElement.height = 300;
+            } else if (type === 'dot') {
+                newElement.width = 20;
+                newElement.height = 20;
+                newElement.color = data.color || '#ef4444';
+            }
+
+            jamState.frames[jamState.currentFrameIndex].push(newElement);
             renderBoard();
             broadcastState();
+            return newElement.id;
         }
 
         function addStroke() {
+            const currentFrame = jamState.frames[jamState.currentFrameIndex];
             if (currentPath.length < 2) return;
+            recordHistory();
             const newStroke = {
                 id: `stroke_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 type: 'stroke',
@@ -275,79 +602,119 @@
                 color: penColor,
                 width: 4
             };
-            boardState.push(newStroke);
+            currentFrame.push(newStroke);
             broadcastState();
         }
 
         // --- RENDERING ---
         function renderBoard() {
-            board.innerHTML = ''; // Clear div elements
-            if (resizeObserver) resizeObserver.disconnect(); // Disconnect old observers
-            ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height); // Clear canvas
+            const currentFrame = jamState.frames[jamState.currentFrameIndex];
+            board.innerHTML = '';
+            ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
-            boardState.forEach(elemData => {
+            currentFrame.forEach(elemData => {
                 if (elemData.type === 'stroke') {
                     drawStroke(elemData);
                 } else {
                     renderDivElement(elemData);
                 }
             });
+            updateFrameIndicator();
         }
 
         function renderDivElement(elemData) {
             const elemDiv = document.createElement('div');
             elemDiv.id = elemData.id;
             elemDiv.className = `joard-element ${elemData.type}`;
+            if (elemData.id === selectedElementId) {
+                elemDiv.classList.add('selected');
+            }
+            if (elemData.locked) {
+                elemDiv.classList.add('locked');
+            }
             elemDiv.style.left = `${elemData.x}px`;
             elemDiv.style.top = `${elemData.y}px`;
             elemDiv.style.width = `${elemData.width}px`;
             elemDiv.style.height = `${elemData.height}px`;
+            if(elemData.type === 'sticky-note' || elemData.type === 'dot') {
+                elemDiv.style.backgroundColor = elemData.color;
+            }
+            if(elemData.type === 'text-box') {
+                elemDiv.style.fontFamily = elemData.fontFamily;
+                elemDiv.style.fontSize = `${elemData.height * 0.7}px`;
+            }
 
-            const textArea = document.createElement('textarea');
-            textArea.value = elemData.content;
-            
-            textArea.addEventListener('input', () => {
-                const targetElement = boardState.find(e => e.id === elemData.id);
-                if (targetElement) {
-                    targetElement.content = textArea.value;
-                    if (targetElement.type === 'sticky-note') {
-                        adjustStickyFontSize(textArea);
+            if (elemData.type === 'image') {
+                const img = document.createElement('img');
+                img.src = elemData.src;
+                img.onerror = () => { img.src = 'https://placehold.co/300x300/eef2f9/333?text=Image+Not+Found'; };
+                elemDiv.appendChild(img);
+            } else if (elemData.type !== 'dot') {
+                const textArea = document.createElement('textarea');
+                textArea.value = elemData.content;
+                textArea.style.fontFamily = 'inherit';
+                textArea.style.fontSize = 'inherit';
+                textArea.disabled = elemData.locked;
+                
+                textArea.addEventListener('input', () => {
+                    const targetElement = jamState.frames[jamState.currentFrameIndex].find(e => e.id === elemData.id);
+                    if (targetElement) {
+                        recordHistory();
+                        targetElement.content = textArea.value;
+                        broadcastState();
                     }
-                    broadcastState();
-                }
-            });
+                });
+                elemDiv.appendChild(textArea);
+            }
 
             const deleteBtn = document.createElement('div');
-            deleteBtn.className = 'delete-btn';
+            deleteBtn.className = 'context-btn delete-btn';
             deleteBtn.innerHTML = '<i class="fas fa-times fa-xs"></i>';
-            deleteBtn.addEventListener('click', (e) => {
+            
+            const deleteHandler = (e) => {
                 e.stopPropagation();
-                boardState = boardState.filter(e => e.id !== elemData.id);
+                const elem = jamState.frames[jamState.currentFrameIndex].find(el => el.id === elemData.id);
+                if (elem?.locked) {
+                    showToast("Cannot delete a locked item.");
+                    return;
+                }
+                recordHistory();
+                jamState.frames[jamState.currentFrameIndex] = jamState.frames[jamState.currentFrameIndex].filter(el => el.id !== elemData.id);
+                selectedElementId = null;
                 renderBoard();
                 broadcastState();
-            });
-
-            elemDiv.appendChild(textArea);
+                updateContextualToolbar();
+            };
+            deleteBtn.addEventListener('mousedown', deleteHandler);
+            deleteBtn.addEventListener('touchstart', deleteHandler);
             elemDiv.appendChild(deleteBtn);
+
+            if (isHost) {
+                const lockBtn = document.createElement('div');
+                lockBtn.className = 'context-btn lock-btn';
+                lockBtn.innerHTML = `<i class="fas ${elemData.locked ? 'fa-lock' : 'fa-lock-open'} fa-xs"></i>`;
+                const lockHandler = (e) => {
+                    e.stopPropagation();
+                    recordHistory();
+                    const elem = jamState.frames[jamState.currentFrameIndex].find(el => el.id === elemData.id);
+                    if(elem) {
+                        elem.locked = !elem.locked;
+                    }
+                    renderBoard();
+                    broadcastState();
+                };
+                lockBtn.addEventListener('mousedown', lockHandler);
+                lockBtn.addEventListener('touchstart', lockHandler);
+                elemDiv.appendChild(lockBtn);
+            }
+
+            if ((elemData.type === 'text-box' || elemData.type === 'image') && !elemData.locked) {
+                const resizeHandle = document.createElement('div');
+                resizeHandle.className = 'resize-handle';
+                elemDiv.appendChild(resizeHandle);
+            }
+            
             board.appendChild(elemDiv);
-
-            if (elemData.type === 'text-box') {
-                resizeObserver.observe(elemDiv);
-            }
-            if (elemData.type === 'sticky-note') {
-                adjustStickyFontSize(textArea);
-            }
-        }
-
-        function adjustStickyFontSize(textArea) {
-            const container = textArea.parentElement;
-            let fontSize = 20; // Start with a large font size
-            textArea.style.fontSize = `${fontSize}px`;
-            // Reduce font size until text fits
-            while ((textArea.scrollHeight > container.clientHeight || textArea.scrollWidth > container.clientWidth) && fontSize > 8) {
-                fontSize--;
-                textArea.style.fontSize = `${fontSize}px`;
-            }
         }
 
         function drawStroke(strokeData) {
@@ -356,7 +723,6 @@
             ctx.lineWidth = strokeData.width;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            
             if (strokeData.points.length > 0) {
                 ctx.moveTo(strokeData.points[0].x, strokeData.points[0].y);
                 for (let i = 1; i < strokeData.points.length; i++) {
@@ -368,127 +734,441 @@
 
         // --- CANVAS & INTERACTIVITY ---
         function resizeCanvas() {
-            const rect = boardContainer.getBoundingClientRect();
-            drawingCanvas.width = rect.width;
-            drawingCanvas.height = rect.height;
-            renderBoard();
-        }
-
-        function getMousePos(evt) {
-            const rect = drawingCanvas.getBoundingClientRect();
-            return {
-                x: evt.clientX - rect.left,
-                y: evt.clientY - rect.top
-            };
-        }
-
-        function handleMouseDown(e) {
-            if (activeTool === 'pen') {
-                isDrawing = true;
-                currentPath = [getMousePos(e)];
-            } else if (activeTool === 'select') {
-                const target = e.target.closest('.joard-element');
-                if (!target) return;
-                activeElement = target;
-                isDragging = true;
-                const rect = target.getBoundingClientRect();
-                initialPos.x = e.clientX - rect.left;
-                initialPos.y = e.clientY - rect.top;
-                target.style.zIndex = 1000;
+            if (!mainApp.classList.contains('hidden')) {
+                const rect = boardContainer.getBoundingClientRect();
+                drawingCanvas.width = rect.width;
+                drawingCanvas.height = rect.height;
+                renderBoard();
             }
         }
 
+        function getEventPos(evt) {
+            const rect = drawingCanvas.getBoundingClientRect();
+            const clientX = evt.clientX || evt.touches[0].clientX;
+            const clientY = evt.clientY || evt.touches[0].clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function handleMouseDown(e) {
+            if (e.target.tagName.toLowerCase() === 'textarea') {
+                e.target.focus();
+                return;
+            }
+
+            const pos = getEventPos(e);
+            const targetElementDiv = e.target.closest('.joard-element');
+            const elementState = targetElementDiv ? jamState.frames[jamState.currentFrameIndex].find(el => el.id === targetElementDiv.id) : null;
+
+            if (activeTool === 'pen') {
+                isDrawing = true;
+                currentPath = [pos];
+                return;
+            }
+            
+            if (activeTool === 'adding-sticky') {
+                addElement('sticky-note', { x: pos.x, y: pos.y, color: stickyColor });
+                setActiveTool('select');
+                return;
+            }
+            
+            if (activeTool === 'adding-text') {
+                const newId = addElement('text-box', { x: pos.x, y: pos.y, fontFamily: textFont, height: 60 });
+                setActiveTool('select');
+                selectedElementId = newId;
+                renderBoard();
+                setTimeout(() => {
+                    const newElemDiv = document.getElementById(newId);
+                    if (newElemDiv) newElemDiv.querySelector('textarea').focus();
+                }, 0);
+                return;
+            }
+            
+            if (activeTool === 'adding-dot') {
+                addElement('dot', { x: pos.x - 10, y: pos.y - 10, color: dotColor });
+                return; // Don't switch tool
+            }
+
+            const targetHandle = e.target.closest('.resize-handle');
+            
+            if (targetHandle && !elementState?.locked) {
+                recordHistory();
+                isResizing = true;
+                selectedElementId = targetHandle.parentElement.id;
+                initialPos = pos;
+                initialElementState = { ...elementState };
+                e.stopPropagation();
+            } else if (targetElementDiv) {
+                selectedElementId = targetElementDiv.id; 
+                if (!elementState?.locked) {
+                    recordHistory();
+                    isDragging = true;
+                    initialPos = pos;
+                    initialElementState = { ...elementState };
+                }
+            } else {
+                selectedElementId = null;
+            }
+
+            renderBoard();
+            updateContextualToolbar();
+        }
+
         function handleMouseMove(e) {
-            if (isDrawing && activeTool === 'pen') {
-                const pos = getMousePos(e);
+            if (e.buttons === 0 && e.touches?.length === 0) {
+                isDrawing = isDragging = isResizing = false;
+                return;
+            }
+            if (isDrawing) {
+                e.preventDefault();
+                const pos = getEventPos(e);
                 currentPath.push(pos);
                 ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
                 renderBoard();
                 drawStroke({ points: currentPath, color: penColor, width: 4 });
-            } else if (isDragging && activeTool === 'select' && activeElement) {
+            } else if (isDragging) {
+                e.preventDefault();
+                const currentPos = getEventPos(e);
+                const dx = currentPos.x - initialPos.x;
+                const dy = currentPos.y - initialPos.y;
+                const elementState = jamState.frames[jamState.currentFrameIndex].find(el => el.id === selectedElementId);
+                
+                let newX = initialElementState.x + dx;
+                let newY = initialElementState.y + dy;
+
                 const boardRect = board.getBoundingClientRect();
-                let newX = e.clientX - boardRect.left - initialPos.x;
-                let newY = e.clientY - boardRect.top - initialPos.y;
-                newX = Math.max(0, Math.min(newX, boardRect.width - activeElement.offsetWidth));
-                newY = Math.max(0, Math.min(newY, boardRect.height - activeElement.offsetHeight));
-                activeElement.style.left = `${newX}px`;
-                activeElement.style.top = `${newY}px`;
-                const targetElement = boardState.find(el => el.id === activeElement.id);
-                if (targetElement) {
-                    targetElement.x = newX;
-                    targetElement.y = newY;
-                }
+                newX = Math.max(0, Math.min(newX, boardRect.width - elementState.width));
+                newY = Math.max(0, Math.min(newY, boardRect.height - elementState.height));
+
+                elementState.x = newX;
+                elementState.y = newY;
+                renderBoard();
+            } else if (isResizing) {
+                e.preventDefault();
+                const currentPos = getEventPos(e);
+                const dx = currentPos.x - initialPos.x;
+                const dy = currentPos.y - initialPos.y;
+                const elementState = jamState.frames[jamState.currentFrameIndex].find(el => el.id === selectedElementId);
+                const boardRect = board.getBoundingClientRect();
+
+                let newWidth = initialElementState.width + dx;
+                let newHeight = initialElementState.height + dy;
+
+                newWidth = Math.max(50, Math.min(newWidth, boardRect.width - elementState.x));
+                newHeight = Math.max(20, Math.min(newHeight, boardRect.height - elementState.y));
+
+                elementState.width = newWidth;
+                elementState.height = newHeight;
+                renderBoard();
             }
         }
 
         function handleMouseUp() {
-            if (isDrawing && activeTool === 'pen') {
+            if (isDrawing) {
                 addStroke();
-            } else if (isDragging && activeTool === 'select') {
-                broadcastState(); // Broadcast final position and size
+            } else if (isDragging || isResizing) {
+                broadcastState();
             }
             isDrawing = false;
             isDragging = false;
+            isResizing = false;
             currentPath = [];
-            if (activeElement) {
-                activeElement.style.zIndex = 10;
-                activeElement = null;
-            }
         }
         
         // --- UI & TOOL MANAGEMENT ---
         function setActiveTool(tool) {
             activeTool = tool;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`tool-${tool}`).classList.add('active');
+            const btnId = tool.startsWith('adding') ? tool.replace('adding-', 'tool-') : `tool-${tool}`;
+            document.getElementById(btnId)?.classList.add('active');
 
-            if (tool === 'pen') {
-                drawingCanvas.style.pointerEvents = 'auto';
-                board.style.pointerEvents = 'none';
-                penOptions.classList.remove('hidden');
-                penOptions.classList.add('flex');
-            } else {
-                drawingCanvas.style.pointerEvents = 'none';
-                board.style.pointerEvents = 'auto';
-                penOptions.classList.add('hidden');
-                penOptions.classList.remove('flex');
+            const cursorMap = {
+                pen: 'crosshair',
+                'adding-text': 'text',
+                'adding-sticky': 'copy',
+                'adding-dot': 'copy',
+                select: 'default'
+            };
+            board.style.cursor = cursorMap[tool] || 'default';
+            drawingCanvas.style.pointerEvents = tool === 'pen' ? 'auto' : 'none';
+            
+            updateContextualToolbar();
+        }
+
+        function updateContextualToolbar() {
+            const allOptions = [penOptions, stickyOptions, textOptions, dotOptions];
+            allOptions.forEach(opt => opt.classList.add('hidden'));
+            contextOptionsContainer.classList.add('hidden');
+
+            const toolOptionMap = {
+                pen: penOptions,
+                'adding-sticky': stickyOptions,
+                'adding-text': textOptions,
+                'adding-dot': dotOptions
+            };
+
+            const selectedElem = jamState.frames[jamState.currentFrameIndex].find(e => e.id === selectedElementId);
+            const selectedTypeOptionMap = {
+                'sticky-note': stickyOptions,
+                'text-box': textOptions
+            };
+
+            const optionsToShow = toolOptionMap[activeTool] || (selectedElem ? selectedTypeOptionMap[selectedElem.type] : null);
+
+            if (optionsToShow) {
+                optionsToShow.classList.remove('hidden');
+                contextOptionsContainer.classList.remove('hidden');
             }
         }
 
-        function setPenColor(color) {
-            penColor = color;
-            penOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
-            penOptions.querySelector(`[data-color="${color}"]`).classList.add('active');
+        // --- FRAME MANAGEMENT ---
+        function updateFrameIndicator() {
+            frameBar.classList.remove('hidden');
+            frameIndicator.textContent = `${jamState.currentFrameIndex + 1} / ${jamState.frames.length}`;
+        }
+
+        function addFrame() {
+            recordHistory();
+            jamState.frames.push([]);
+            jamState.currentFrameIndex = jamState.frames.length - 1;
+            renderBoard();
+            broadcastState();
+        }
+
+        function nextFrame() {
+            if (jamState.currentFrameIndex < jamState.frames.length - 1) {
+                jamState.currentFrameIndex++;
+                renderBoard();
+                broadcastState();
+            }
+        }
+
+        function prevFrame() {
+            if (jamState.currentFrameIndex > 0) {
+                jamState.currentFrameIndex--;
+                renderBoard();
+                broadcastState();
+            }
         }
 
         // --- EVENT LISTENERS ---
-        connectBtn.addEventListener('click', () => connectToPeer(joinCodeInput.value.trim()));
-        copyCodeBtn.addEventListener('click', () => {
-            shareCodeInput.select();
-            document.execCommand('copy');
-            alert('Share code copied to clipboard!');
-        });
-        addStickyBtn.addEventListener('click', () => setActiveTool('add-sticky-btn'));
-        addTextBtn.addEventListener('click', () => setActiveTool('add-text-btn'));
-        toolSelectBtn.addEventListener('click', () => setActiveTool('select'));
-        toolPenBtn.addEventListener('click', () => setActiveTool('pen'));
-        penOptions.addEventListener('click', (e) => {
-            if (e.target.matches('.color-btn')) {
-                setPenColor(e.target.dataset.color);
+        nameSubmitBtn.addEventListener('click', () => {
+            const name = nameInput.value.trim();
+            if (name) {
+                userName = name;
+                nameModal.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                resizeCanvas();
+                setActiveTool('select');
+                updateUndoRedoButtons();
+            } else {
+                showToast("Please enter a name to continue.");
             }
         });
 
+        startJoinBtn.addEventListener('click', startOrJoinBoard);
+        toolStickyBtn.addEventListener('click', () => setActiveTool('adding-sticky'));
+        toolTextBtn.addEventListener('click', () => setActiveTool('adding-text'));
+        toolDotBtn.addEventListener('click', () => setActiveTool('adding-dot'));
+        addImageBtn.addEventListener('click', () => imageUploadInput.click());
+        toolSelectBtn.addEventListener('click', () => setActiveTool('select'));
+        toolPenBtn.addEventListener('click', () => setActiveTool('pen'));
+        undoBtn.addEventListener('click', undo);
+        redoBtn.addEventListener('click', redo);
+        addFrameBtn.addEventListener('click', addFrame);
+        nextFrameBtn.addEventListener('click', nextFrame);
+        prevFrameBtn.addEventListener('click', prevFrame);
+        
+        contextOptionsContainer.addEventListener('mousedown', e => e.stopPropagation());
+        contextOptionsContainer.addEventListener('touchstart', e => e.stopPropagation());
+
+        penOptions.addEventListener('click', (e) => {
+            if (e.target.matches('.color-btn')) {
+                penColor = e.target.dataset.color;
+                penOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+        });
+
+        stickyOptions.addEventListener('click', (e) => {
+            if (e.target.matches('.color-btn')) {
+                stickyColor = e.target.dataset.color;
+                stickyOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                if (selectedElementId) {
+                    const elem = jamState.frames[jamState.currentFrameIndex].find(el => el.id === selectedElementId);
+                    if (elem?.type === 'sticky-note') {
+                        recordHistory();
+                        elem.color = stickyColor;
+                        renderBoard();
+                        broadcastState();
+                    }
+                }
+            }
+        });
+
+        textOptions.addEventListener('click', (e) => {
+            const fontBtn = e.target.closest('.font-btn');
+            if (fontBtn) {
+                textFont = fontBtn.dataset.font;
+                textOptions.querySelectorAll('.font-btn').forEach(btn => btn.classList.remove('active'));
+                fontBtn.classList.add('active');
+                if (selectedElementId) {
+                    const elem = jamState.frames[jamState.currentFrameIndex].find(el => el.id === selectedElementId);
+                    if (elem?.type === 'text-box') {
+                        recordHistory();
+                        elem.fontFamily = textFont;
+                        renderBoard();
+                        broadcastState();
+                    }
+                }
+            }
+        });
+        
+        dotOptions.addEventListener('click', (e) => {
+            if (e.target.matches('.color-btn')) {
+                dotColor = e.target.dataset.color;
+                dotOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+        });
+
+        imageUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const dataUrl = event.target.result;
+                    if (dataUrl.length > 500000) { // Limit to ~0.5MB
+                        showToast("Image is too large. Please choose a smaller file.", 5000);
+                        return;
+                    }
+                    addElement('image', { src: dataUrl });
+                };
+                reader.readAsDataURL(file);
+            }
+            e.target.value = '';
+        });
+
+        // Add both mouse and touch listeners for full compatibility
         boardContainer.addEventListener('mousedown', handleMouseDown);
         boardContainer.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
+        
+        boardContainer.addEventListener('touchstart', handleMouseDown, { passive: false });
+        boardContainer.addEventListener('touchmove', handleMouseMove, { passive: false });
+        window.addEventListener('touchend', handleMouseUp);
+
+
         window.addEventListener('resize', resizeCanvas);
 
-        // --- LET'S GO! ---
-        initializePeer();
-        initializeResizeObserver();
-        resizeCanvas();
-        setActiveTool('select');
-        setPenColor('#000000');
+        viewUsersBtn.addEventListener('click', () => usersModal.classList.remove('hidden'));
+        closeUsersModalBtn.addEventListener('click', () => usersModal.classList.add('hidden'));
+        usersModal.addEventListener('click', e => {
+            if (e.target === usersModal) usersModal.classList.add('hidden');
+        });
+
+        templatesBtn.addEventListener('click', () => templatesModal.classList.remove('hidden'));
+        closeTemplatesModalBtn.addEventListener('click', () => templatesModal.classList.add('hidden'));
+        
+        presentBtn.addEventListener('click', () => {
+            document.body.classList.toggle('presentation-mode');
+            setTimeout(resizeCanvas, 100); 
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.body.classList.contains('presentation-mode')) {
+                document.body.classList.remove('presentation-mode');
+                setTimeout(resizeCanvas, 100);
+            }
+        });
+
+        exportBtn.addEventListener('click', () => {
+            const previouslySelected = selectedElementId;
+            selectedElementId = null;
+            renderBoard(); // Re-render without selection outlines
+
+            html2canvas(boardContainer).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'bam-joard.png';
+                link.href = canvas.toDataURL();
+                link.click();
+
+                // Restore selection
+                selectedElementId = previouslySelected;
+                renderBoard();
+            });
+        });
+
+        // --- TEMPLATES LOGIC ---
+        const templates = {
+            mindMap: {
+                name: "Mind Map",
+                description: "A calming layout for brainstorming ideas.",
+                state: [
+                    { type: 'text-box', content: 'Central Idea', x: 860, y: 480, width: 200, height: 60, fontFamily: 'Caveat', locked: true },
+                ]
+            },
+            kanban: {
+                name: "Kanban Board",
+                description: "Organize tasks into simple columns.",
+                state: [
+                    { type: 'text-box', content: 'To Do', x: 200, y: 50, width: 300, height: 60, fontFamily: 'Montserrat', locked: true },
+                    { type: 'text-box', content: 'In Progress', x: 800, y: 50, width: 300, height: 60, fontFamily: 'Montserrat', locked: true },
+                    { type: 'text-box', content: 'Done', x: 1400, y: 50, width: 300, height: 60, fontFamily: 'Montserrat', locked: true },
+                ]
+            },
+            gratitude: {
+                name: "Gratitude Board",
+                description: "A shared space to post what you're thankful for.",
+                state: [
+                    { type: 'text-box', content: 'What are we grateful for today?', x: 660, y: 50, width: 600, height: 80, fontFamily: 'Caveat', locked: true },
+                ]
+            }
+        };
+
+        function populateTemplates() {
+            templatesList.innerHTML = '';
+            for (const key in templates) {
+                const template = templates[key];
+                const div = document.createElement('div');
+                div.className = 'p-4 border rounded-lg cursor-pointer hover:bg-gray-100';
+                div.innerHTML = `<h3 class="font-bold text-lg">${template.name}</h3><p class="text-sm text-gray-600">${template.description}</p>`;
+                div.addEventListener('click', () => {
+                    // Using a custom modal for confirmation instead of window.confirm
+                    const confirmModal = document.createElement('div');
+                    confirmModal.className = 'fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50';
+                    confirmModal.innerHTML = `
+                        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+                            <h2 class="text-xl font-bold mb-4 text-gray-800">Apply Template?</h2>
+                            <p class="text-gray-600 mb-6">This will replace the current board's content. Are you sure?</p>
+                            <div class="flex justify-center gap-4">
+                                <button id="confirm-yes" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md">Yes, apply</button>
+                                <button id="confirm-no" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-md">Cancel</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(confirmModal);
+
+                    document.getElementById('confirm-yes').addEventListener('click', () => {
+                        recordHistory();
+                        jamState.frames = [JSON.parse(JSON.stringify(template.state))]; // Deep copy
+                        jamState.currentFrameIndex = 0;
+                        renderBoard();
+                        broadcastState();
+                        templatesModal.classList.add('hidden');
+                        document.body.removeChild(confirmModal);
+                    });
+
+                    document.getElementById('confirm-no').addEventListener('click', () => {
+                        document.body.removeChild(confirmModal);
+                    });
+                });
+                templatesList.appendChild(div);
+            }
+        }
+        
+        populateTemplates();
+
     </script>
 </body>
 </html>
