@@ -172,9 +172,10 @@
             <button id="add-text-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
                 <i class="fas fa-font text-gray-600"></i>
             </button>
-            <button id="add-image-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
+            <button id="add-image-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2" title="Upload Image">
                 <i class="fas fa-image text-gray-600"></i>
             </button>
+            <input type="file" id="image-upload-input" class="hidden" accept="image/*">
             <div id="pen-options" class="hidden items-center gap-2 ml-2 border-l pl-2">
                 <button class="color-btn w-6 h-6 rounded-full" style="background-color: #000000;" data-color="#000000"></button>
                 <button class="color-btn w-6 h-6 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
@@ -206,24 +207,6 @@
         </div>
     </div>
 
-    <!-- Image Search Modal -->
-    <div id="image-search-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Search for Images</h2>
-                <button id="close-image-search-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
-            </div>
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="image-search-input" placeholder="e.g., 'calming beaches'..." class="flex-grow border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-400">
-                <button id="image-search-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md">Search</button>
-            </div>
-            <div id="image-results" class="grid grid-cols-3 gap-4 h-96 overflow-y-auto bg-gray-100 p-4 rounded-md">
-                <!-- Image results will be populated here -->
-            </div>
-        </div>
-    </div>
-
-
     <script>
         // --- DOM ELEMENTS ---
         const nameModal = document.getElementById('name-modal');
@@ -246,13 +229,9 @@
         const addStickyBtn = document.getElementById('add-sticky-btn');
         const addTextBtn = document.getElementById('add-text-btn');
         const addImageBtn = document.getElementById('add-image-btn');
+        const imageUploadInput = document.getElementById('image-upload-input');
         const penOptions = document.getElementById('pen-options');
         const toast = document.getElementById('toast');
-        const imageSearchModal = document.getElementById('image-search-modal');
-        const closeImageSearchModalBtn = document.getElementById('close-image-search-modal-btn');
-        const imageSearchInput = document.getElementById('image-search-input');
-        const imageSearchBtn = document.getElementById('image-search-btn');
-        const imageResults = document.getElementById('image-results');
 
         // --- APP STATE ---
         let peer;
@@ -443,7 +422,7 @@
                 newElement.height = 150;
             } else if (type === 'image') {
                 newElement.width = 300;
-                newElement.height = 200;
+                newElement.height = 300;
             }
 
             boardState.push(newElement);
@@ -491,7 +470,7 @@
             if (elemData.type === 'image') {
                 const img = document.createElement('img');
                 img.src = elemData.src;
-                img.onerror = () => { img.src = 'https://placehold.co/300x200/eef2f9/333?text=Image+Not+Found'; };
+                img.onerror = () => { img.src = 'https://placehold.co/300x300/eef2f9/333?text=Image+Not+Found'; };
                 elemDiv.appendChild(img);
             } else {
                 const textArea = document.createElement('textarea');
@@ -651,37 +630,6 @@
             penOptions.querySelector(`[data-color="${color}"]`).classList.add('active');
         }
 
-        // --- IMAGE SEARCH LOGIC ---
-        function searchImages() {
-            const query = imageSearchInput.value.trim();
-            if (!query) {
-                showToast("Please enter a search term.");
-                return;
-            }
-            imageResults.innerHTML = '';
-            
-            // Using Unsplash Source for key-free image searching
-            for (let i = 0; i < 12; i++) {
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'w-full h-32 bg-gray-200 rounded-md overflow-hidden cursor-pointer hover:opacity-75';
-                const img = document.createElement('img');
-                // The random parameter ensures we get different images for each slot
-                const imageUrl = `https://source.unsplash.com/400x300/?${query}&random=${i}`;
-                img.src = imageUrl;
-                img.className = 'w-full h-full object-cover';
-                img.onerror = () => { 
-                    img.parentElement.innerHTML = '<p class="text-xs text-center p-2 text-gray-500">Could not load image.</p>';
-                };
-                imgContainer.appendChild(img);
-                imgContainer.addEventListener('click', () => {
-                    // Use the final redirected URL from the image element's src property
-                    addElement('image', { src: img.src });
-                    imageSearchModal.classList.add('hidden');
-                });
-                imageResults.appendChild(imgContainer);
-            }
-        }
-
         // --- EVENT LISTENERS ---
         nameSubmitBtn.addEventListener('click', () => {
             const name = nameInput.value.trim();
@@ -701,12 +649,24 @@
         startJoinBtn.addEventListener('click', startOrJoinBoard);
         addStickyBtn.addEventListener('click', () => addElement('sticky-note'));
         addTextBtn.addEventListener('click', () => addElement('text-box'));
-        addImageBtn.addEventListener('click', () => imageSearchModal.classList.remove('hidden'));
+        addImageBtn.addEventListener('click', () => imageUploadInput.click());
         toolSelectBtn.addEventListener('click', () => setActiveTool('select'));
         toolPenBtn.addEventListener('click', () => setActiveTool('pen'));
         penOptions.addEventListener('click', (e) => {
             if (e.target.matches('.color-btn')) {
                 setPenColor(e.target.dataset.color);
+            }
+        });
+
+        imageUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const dataUrl = event.target.result;
+                    addElement('image', { src: dataUrl });
+                };
+                reader.readAsDataURL(file);
             }
         });
 
@@ -719,13 +679,7 @@
         closeUsersModalBtn.addEventListener('click', () => usersModal.classList.add('hidden'));
         usersModal.addEventListener('click', e => {
             if (e.target === usersModal) usersModal.classList.add('hidden');
-        });
-
-        closeImageSearchModalBtn.addEventListener('click', () => imageSearchModal.classList.add('hidden'));
-        imageSearchBtn.addEventListener('click', searchImages);
-        imageSearchInput.addEventListener('keyup', e => {
-            if (e.key === 'Enter') searchImages();
-        });
+});
 
     </script>
 </body>
