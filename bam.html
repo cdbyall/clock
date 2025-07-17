@@ -113,14 +113,12 @@
             transition: opacity 0.2s;
             z-index: 11;
             visibility: hidden;
-            /* START: Fixed icon scaling issue */
             font-size: 14px;
-            /* END: Fixed icon scaling issue */
         }
-        /* START: Fixed icon position and clipping issue */
         .delete-btn { top: 8px; right: 8px; background-color: #ef4444; }
         .lock-btn { top: 8px; right: 44px; }
-        /* END: Fixed icon position and clipping issue */
+        .layer-up-btn { bottom: 8px; left: 44px; }
+        .layer-down-btn { bottom: 8px; left: 8px; }
         
         .joard-element:hover .context-btn,
         .joard-element.selected .context-btn {
@@ -128,7 +126,11 @@
             visibility: visible;
         }
         .joard-element.locked:hover .delete-btn,
-        .joard-element.locked.selected .delete-btn {
+        .joard-element.locked.selected .delete-btn,
+        .joard-element.locked:hover .layer-up-btn,
+        .joard-element.locked.selected .layer-up-btn,
+        .joard-element.locked:hover .layer-down-btn,
+        .joard-element.locked.selected .layer-down-btn {
             opacity: 0;
             visibility: hidden;
         }
@@ -247,7 +249,6 @@
             <button id="tool-text" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Text"><i class="fas fa-font"></i></button>
             <button id="add-image-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Image"><i class="fas fa-image"></i></button>
             <button id="tool-dot" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Sticker"><i class="fas fa-circle"></i></button>
-            <button id="templates-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Templates"><i class="fas fa-th-large"></i></button>
             <input type="file" id="image-upload-input" class="hidden" accept="image/*">
             
             <!-- Contextual Tool Options -->
@@ -296,19 +297,6 @@
         </div>
     </div>
     
-    <!-- Templates Modal -->
-    <div id="templates-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-4xl">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Choose a Calming Template</h2>
-                <button id="close-templates-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
-            </div>
-            <div id="templates-list" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- Templates will be populated here -->
-            </div>
-        </div>
-    </div>
-
     <script>
         // --- DOM ELEMENTS ---
         const nameModal = document.getElementById('name-modal');
@@ -335,10 +323,6 @@
         const toolDotBtn = document.getElementById('tool-dot');
         const addImageBtn = document.getElementById('add-image-btn');
         const imageUploadInput = document.getElementById('image-upload-input');
-        const templatesBtn = document.getElementById('templates-btn');
-        const templatesModal = document.getElementById('templates-modal');
-        const closeTemplatesModalBtn = document.getElementById('close-templates-modal-btn');
-        const templatesList = document.getElementById('templates-list');
         const exportBtn = document.getElementById('export-btn');
         const presentBtn = document.getElementById('present-btn');
         const contextOptionsContainer = document.getElementById('context-options-container');
@@ -708,6 +692,32 @@
                 elemDiv.appendChild(lockBtn);
             }
 
+            if (!elemData.locked) {
+                const layerUpBtn = document.createElement('div');
+                layerUpBtn.className = 'context-btn layer-up-btn';
+                layerUpBtn.innerHTML = '<i class="fas fa-arrow-up fa-xs"></i>';
+                layerUpBtn.title = 'Bring Forward';
+                const layerUpHandler = (e) => {
+                    e.stopPropagation();
+                    moveElementForward(elemData.id);
+                };
+                layerUpBtn.addEventListener('mousedown', layerUpHandler);
+                layerUpBtn.addEventListener('touchstart', layerUpHandler);
+                elemDiv.appendChild(layerUpBtn);
+
+                const layerDownBtn = document.createElement('div');
+                layerDownBtn.className = 'context-btn layer-down-btn';
+                layerDownBtn.innerHTML = '<i class="fas fa-arrow-down fa-xs"></i>';
+                layerDownBtn.title = 'Send Backward';
+                const layerDownHandler = (e) => {
+                    e.stopPropagation();
+                    moveElementBackward(elemData.id);
+                };
+                layerDownBtn.addEventListener('mousedown', layerDownHandler);
+                layerDownBtn.addEventListener('touchstart', layerDownHandler);
+                elemDiv.appendChild(layerDownBtn);
+            }
+
             if ((elemData.type === 'text-box' || elemData.type === 'image') && !elemData.locked) {
                 const resizeHandle = document.createElement('div');
                 resizeHandle.className = 'resize-handle';
@@ -920,6 +930,29 @@
             }
         }
 
+        // --- LAYER MANAGEMENT ---
+        function moveElementForward(elementId) {
+            recordHistory();
+            const currentFrame = jamState.frames[jamState.currentFrameIndex];
+            const index = currentFrame.findIndex(el => el.id === elementId);
+            if (index > -1 && index < currentFrame.length - 1) {
+                [currentFrame[index], currentFrame[index + 1]] = [currentFrame[index + 1], currentFrame[index]];
+            }
+            renderBoard();
+            broadcastState();
+        }
+
+        function moveElementBackward(elementId) {
+            recordHistory();
+            const currentFrame = jamState.frames[jamState.currentFrameIndex];
+            const index = currentFrame.findIndex(el => el.id === elementId);
+            if (index > 0) {
+                [currentFrame[index], currentFrame[index - 1]] = [currentFrame[index - 1], currentFrame[index]];
+            }
+            renderBoard();
+            broadcastState();
+        }
+
         // --- FRAME MANAGEMENT ---
         function updateFrameIndicator() {
             frameBar.classList.remove('hidden');
@@ -974,9 +1007,12 @@
         toolPenBtn.addEventListener('click', () => setActiveTool('pen'));
         undoBtn.addEventListener('click', undo);
         redoBtn.addEventListener('click', redo);
-        addFrameBtn.addEventListener('click', addFrame);
-        nextFrameBtn.addEventListener('click', nextFrame);
-        prevFrameBtn.addEventListener('click', prevFrame);
+        
+        // START: Frame Navigator Event Listener Fix
+        addFrameBtn.addEventListener('mousedown', addFrame);
+        nextFrameBtn.addEventListener('mousedown', nextFrame);
+        prevFrameBtn.addEventListener('mousedown', prevFrame);
+        // END: Frame Navigator Event Listener Fix
         
         contextOptionsContainer.addEventListener('mousedown', e => e.stopPropagation());
         contextOptionsContainer.addEventListener('touchstart', e => e.stopPropagation());
@@ -1038,10 +1074,12 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const dataUrl = event.target.result;
+                    // START: Updated Image Size Limit Message
                     if (dataUrl.length > 500000) { // Limit to ~0.5MB
-                        showToast("Image is too large. Please choose a smaller file.", 5000);
+                        showToast("Image is too large. Please choose a file under 500KB.", 5000);
                         return;
                     }
+                    // END: Updated Image Size Limit Message
                     addElement('image', { src: dataUrl });
                 };
                 reader.readAsDataURL(file);
@@ -1066,9 +1104,6 @@
         usersModal.addEventListener('click', e => {
             if (e.target === usersModal) usersModal.classList.add('hidden');
         });
-
-        templatesBtn.addEventListener('click', () => templatesModal.classList.remove('hidden'));
-        closeTemplatesModalBtn.addEventListener('click', () => templatesModal.classList.add('hidden'));
         
         presentBtn.addEventListener('click', () => {
             document.body.classList.toggle('presentation-mode');
@@ -1098,77 +1133,6 @@
                 renderBoard();
             });
         });
-
-        // --- TEMPLATES LOGIC ---
-        const templates = {
-            mindMap: {
-                name: "Mind Map",
-                description: "A calming layout for brainstorming ideas.",
-                state: [
-                    { type: 'text-box', content: 'Central Idea', x: 860, y: 480, width: 200, height: 60, fontFamily: 'Caveat', locked: true },
-                ]
-            },
-            kanban: {
-                name: "Kanban Board",
-                description: "Organize tasks into simple columns.",
-                state: [
-                    { type: 'text-box', content: 'To Do', x: 200, y: 50, width: 300, height: 60, fontFamily: 'Montserrat', locked: true },
-                    { type: 'text-box', content: 'In Progress', x: 800, y: 50, width: 300, height: 60, fontFamily: 'Montserrat', locked: true },
-                    { type: 'text-box', content: 'Done', x: 1400, y: 50, width: 300, height: 60, fontFamily: 'Montserrat', locked: true },
-                ]
-            },
-            gratitude: {
-                name: "Gratitude Board",
-                description: "A shared space to post what you're thankful for.",
-                state: [
-                    { type: 'text-box', content: 'What are we grateful for today?', x: 660, y: 50, width: 600, height: 80, fontFamily: 'Caveat', locked: true },
-                ]
-            }
-        };
-
-        function populateTemplates() {
-            templatesList.innerHTML = '';
-            for (const key in templates) {
-                const template = templates[key];
-                const div = document.createElement('div');
-                div.className = 'p-4 border rounded-lg cursor-pointer hover:bg-gray-100';
-                div.innerHTML = `<h3 class="font-bold text-lg">${template.name}</h3><p class="text-sm text-gray-600">${template.description}</p>`;
-                div.addEventListener('click', () => {
-                    // Using a custom modal for confirmation instead of window.confirm
-                    const confirmModal = document.createElement('div');
-                    confirmModal.className = 'fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50';
-                    confirmModal.innerHTML = `
-                        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
-                            <h2 class="text-xl font-bold mb-4 text-gray-800">Apply Template?</h2>
-                            <p class="text-gray-600 mb-6">This will replace the current board's content. Are you sure?</p>
-                            <div class="flex justify-center gap-4">
-                                <button id="confirm-yes" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md">Yes, apply</button>
-                                <button id="confirm-no" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-md">Cancel</button>
-                            </div>
-                        </div>
-                    `;
-                    document.body.appendChild(confirmModal);
-
-                    document.getElementById('confirm-yes').addEventListener('click', () => {
-                        recordHistory();
-                        jamState.frames = [JSON.parse(JSON.stringify(template.state))]; // Deep copy
-                        jamState.currentFrameIndex = 0;
-                        renderBoard();
-                        broadcastState();
-                        templatesModal.classList.add('hidden');
-                        document.body.removeChild(confirmModal);
-                    });
-
-                    document.getElementById('confirm-no').addEventListener('click', () => {
-                        document.body.removeChild(confirmModal);
-                    });
-                });
-                templatesList.appendChild(div);
-            }
-        }
-        
-        populateTemplates();
-
     </script>
 </body>
 </html>
