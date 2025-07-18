@@ -93,9 +93,13 @@
             height: 100%;
             object-fit: fill; 
         }
-        .joard-element.dot {
+        .joard-element.sticker {
             padding: 0;
-            border-radius: 50%;
+            background-color: transparent;
+        }
+        .joard-element.sticker svg {
+            width: 100%;
+            height: 100%;
             opacity: 0.7;
         }
         .context-btn {
@@ -158,7 +162,7 @@
             background-color: #dbeafe;
             box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
         }
-        .color-btn.active, .font-btn.active, .size-btn.active {
+        .color-btn.active, .font-btn.active, .size-btn.active, .shape-btn.active {
             transform: scale(1.1);
             box-shadow: 0 0 0 2px white, 0 0 0 4px #4a90e2;
         }
@@ -217,6 +221,16 @@
                 opacity: 1;
             }
         }
+        /* Modal Animation */
+        .modal-content {
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            transform: scale(0.9);
+            opacity: 0;
+        }
+        .modal-content.visible {
+            transform: scale(1);
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col p-2 sm:p-4 gap-4">
@@ -228,7 +242,7 @@
 
     <!-- Name Entry Modal -->
     <div id="name-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+        <div id="name-modal-content" class="modal-content bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Welcome to Bam Joard!</h2>
             <p class="text-gray-600 mb-6">What's your name?</p>
             <input type="text" id="name-input" placeholder="Enter your name..." class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-400">
@@ -238,7 +252,7 @@
 
     <!-- Action Choice Modal -->
     <div id="action-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+        <div class="modal-content bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">What would you like to do?</h2>
             <div class="flex flex-col gap-4">
                 <button id="new-board-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-md transition-all text-lg">New Board</button>
@@ -249,17 +263,23 @@
 
     <!-- Board Name Modal -->
      <div id="board-name-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+        <div class="modal-content bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
             <h2 id="board-name-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
             <p class="text-gray-600 mb-6">Board names are case-sensitive.</p>
             <input type="text" id="board-name-input" placeholder="Enter board name..." class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-400">
+            <div id="password-container" class="relative mb-4">
+                <input type="password" id="board-password-input" placeholder="Password (optional)..." class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-400">
+                <button id="toggle-password-btn" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </div>
             <button id="board-name-submit-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all">Go</button>
         </div>
     </div>
 
     <!-- Leave/End Board Modal -->
     <div id="leave-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+        <div class="modal-content bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
             <h2 id="leave-modal-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
             <p id="leave-modal-text" class="text-gray-600 mb-6"></p>
             <div class="flex justify-center gap-4">
@@ -318,7 +338,7 @@
             <button id="tool-sticky" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Sticky Note"><i class="fas fa-sticky-note"></i></button>
             <button id="tool-text" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Text"><i class="fas fa-font"></i></button>
             <button id="add-image-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Image"><i class="fas fa-image"></i></button>
-            <button id="tool-dot" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Sticker"><i class="fas fa-circle"></i></button>
+            <button id="tool-sticker" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Sticker"><i class="fas fa-star"></i></button>
             <input type="file" id="image-upload-input" class="hidden" accept="image/*">
             
             <!-- Contextual Tool Options -->
@@ -341,7 +361,14 @@
                     <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Montserrat" style="font-family: 'Montserrat', sans-serif;">Aa</button>
                     <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Caveat" style="font-family: 'Caveat', cursive; font-size: 1.5rem;">Aa</button>
                 </div>
-                 <div id="dot-options" class="hidden items-center gap-2">
+                 <div id="sticker-options" class="hidden items-center gap-2">
+                    <!-- Shapes -->
+                    <button class="shape-btn p-2 rounded-md" data-shape="circle"><i class="fas fa-circle"></i></button>
+                    <button class="shape-btn p-2 rounded-md" data-shape="star"><i class="fas fa-star"></i></button>
+                    <button class="shape-btn p-2 rounded-md" data-shape="heart"><i class="fas fa-heart"></i></button>
+                    <button class="shape-btn p-2 rounded-md" data-shape="triangle"><i class="fas fa-caret-up fa-lg"></i></button>
+                    <div class="w-px h-6 bg-gray-200 mx-1"></div>
+                    <!-- Colors -->
                     <button class="color-btn w-8 h-8 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
                     <button class="color-btn w-8 h-8 rounded-full" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
                     <button class="color-btn w-8 h-8 rounded-full" style="background-color: #22c55e;" data-color="#22c55e"></button>
@@ -371,6 +398,7 @@
         // --- DOM ELEMENTS ---
         const loadingOverlay = document.getElementById('loading-overlay');
         const nameModal = document.getElementById('name-modal');
+        const nameModalContent = document.getElementById('name-modal-content');
         const nameInput = document.getElementById('name-input');
         const nameSubmitBtn = document.getElementById('name-submit-btn');
         const actionModal = document.getElementById('action-modal');
@@ -379,6 +407,9 @@
         const boardNameModal = document.getElementById('board-name-modal');
         const boardNameTitle = document.getElementById('board-name-title');
         const boardNameInput = document.getElementById('board-name-input');
+        const passwordContainer = document.getElementById('password-container');
+        const boardPasswordInput = document.getElementById('board-password-input');
+        const togglePasswordBtn = document.getElementById('toggle-password-btn');
         const boardNameSubmitBtn = document.getElementById('board-name-submit-btn');
         const leaveModal = document.getElementById('leave-modal');
         const leaveModalTitle = document.getElementById('leave-modal-title');
@@ -402,7 +433,7 @@
         const toolPenBtn = document.getElementById('tool-pen');
         const toolStickyBtn = document.getElementById('tool-sticky');
         const toolTextBtn = document.getElementById('tool-text');
-        const toolDotBtn = document.getElementById('tool-dot');
+        const toolStickerBtn = document.getElementById('tool-sticker');
         const addImageBtn = document.getElementById('add-image-btn');
         const imageUploadInput = document.getElementById('image-upload-input');
         const exportBtn = document.getElementById('export-btn');
@@ -411,7 +442,7 @@
         const penOptions = document.getElementById('pen-options');
         const stickyOptions = document.getElementById('sticky-options');
         const textOptions = document.getElementById('text-options');
-        const dotOptions = document.getElementById('dot-options');
+        const stickerOptions = document.getElementById('sticker-options');
         const toast = document.getElementById('toast');
         const frameBar = document.getElementById('frame-bar');
         const frameIndicator = document.getElementById('frame-indicator');
@@ -430,11 +461,12 @@
             frames: [[]], // An array of frames, where each frame is an array of objects
             currentFrameIndex: 0
         };
-        let activeTool = 'select'; // 'select', 'pen', 'adding-sticky', 'adding-text', 'adding-dot'
+        let activeTool = 'select'; // 'select', 'pen', 'adding-sticky', 'adding-text', 'adding-sticker'
         let penColor = '#000000';
         let stickyColor = '#fef9c3';
         let textFont = 'Inter';
-        let dotColor = '#ef4444';
+        let stickerColor = '#ef4444';
+        let stickerShape = 'circle';
         let isDrawing = false;
         let currentPath = [];
         
@@ -491,6 +523,7 @@
         // --- INITIALIZATION & CONNECTION ---
         function startConnection() {
             const boardName = boardNameInput.value.trim();
+            const password = boardPasswordInput.value;
             if (!boardName) {
                 showToast("Please enter a board name.");
                 return;
@@ -499,9 +532,10 @@
             if (peer) { peer.destroy(); }
             
             showToast(`Connecting to "${boardName}"...`);
+            const peerId = password ? `${boardName}-${password}` : boardName;
 
             if (joinMode === 'create') {
-                peer = new Peer(boardName, {
+                peer = new Peer(peerId, {
                     host: '0.peerjs.com', port: 443, path: '/', pingInterval: 5000 
                 });
 
@@ -509,7 +543,7 @@
                     isHost = true;
                     connectedUsers = [{ name: userName, id: id }];
                     updateUsersUI();
-                    showToast(`Board "${id}" created! Waiting for others...`);
+                    showToast(`Board "${boardName}" created! Waiting for others...`);
                     jamState = { frames: [[]], currentFrameIndex: 0 };
                     history = [];
                     redoStack = [];
@@ -539,13 +573,12 @@
                 });
 
                 peer.on('open', () => {
-                    const conn = peer.connect(boardName, { metadata: { name: userName } });
+                    const conn = peer.connect(peerId, { metadata: { name: userName } });
                     setupConnection(conn);
                     
-                    // Check for connection failure after a timeout
                     const connectionTimeout = setTimeout(() => {
                         if (!conn.open) {
-                            showToast(`Could not connect to board "${boardName}". It may not exist.`, 5000);
+                            showToast(`Could not connect to board "${boardName}". Check the name and password.`, 5000);
                             peer.destroy();
                         }
                     }, 8000);
@@ -669,10 +702,11 @@
             } else if (type === 'image') {
                 newElement.width = 300;
                 newElement.height = 300;
-            } else if (type === 'dot') {
-                newElement.width = 20;
-                newElement.height = 20;
+            } else if (type === 'sticker') {
+                newElement.width = 30;
+                newElement.height = 30;
                 newElement.color = data.color || '#ef4444';
+                newElement.shape = data.shape || 'circle';
             }
 
             jamState.frames[jamState.currentFrameIndex].push(newElement);
@@ -712,6 +746,13 @@
             updateFrameIndicator();
         }
 
+        const stickerShapes = {
+            circle: `<circle cx="50" cy="50" r="50"/>`,
+            star: `<polygon points="50,0 61.8,38.2 100,38.2 69.1,61.8 80.9,100 50,76.4 19.1,100 30.9,61.8 0,38.2 38.2,38.2"/>`,
+            heart: `<path d="M85.7,17.1C73.1,4.5,52.9,4.5,40.3,17.1L50,26.8L59.7,17.1C72.3,4.5,92.5,4.5,105.1,17.1 C117.7,29.7,117.7,50,105.1,62.6L50,117.7L-5.1,62.6C-17.7,50,-17.7,29.7,-5.1,17.1 C7.5,4.5,27.7,4.5,40.3,17.1L50,26.8L59.7,17.1z" transform="translate(5, -10) scale(0.9)"/>`,
+            triangle: `<polygon points="50,0 100,100 0,100"/>`
+        };
+
         function renderDivElement(elemData) {
             const elemDiv = document.createElement('div');
             elemDiv.id = elemData.id;
@@ -726,7 +767,7 @@
             elemDiv.style.top = `${elemData.y}px`;
             elemDiv.style.width = `${elemData.width}px`;
             elemDiv.style.height = `${elemData.height}px`;
-            if(elemData.type === 'sticky-note' || elemData.type === 'dot') {
+            if(elemData.type === 'sticky-note') {
                 elemDiv.style.backgroundColor = elemData.color;
             }
             if(elemData.type === 'text-box') {
@@ -739,7 +780,13 @@
                 img.src = elemData.src;
                 img.onerror = () => { img.src = 'https://placehold.co/300x300/eef2f9/333?text=Image+Not+Found'; };
                 elemDiv.appendChild(img);
-            } else if (elemData.type !== 'dot') {
+            } else if (elemData.type === 'sticker') {
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svg.setAttribute('viewBox', '0 0 100 100');
+                svg.innerHTML = stickerShapes[elemData.shape] || stickerShapes.circle;
+                svg.style.fill = elemData.color;
+                elemDiv.appendChild(svg);
+            } else {
                 const textArea = document.createElement('textarea');
                 textArea.value = elemData.content;
                 textArea.style.fontFamily = 'inherit';
@@ -899,8 +946,8 @@
                 return;
             }
             
-            if (activeTool === 'adding-dot') {
-                addElement('dot', { x: pos.x - 10, y: pos.y - 10, color: dotColor });
+            if (activeTool === 'adding-sticker') {
+                addElement('sticker', { x: pos.x - 15, y: pos.y - 15, color: stickerColor, shape: stickerShape });
                 return; // Don't switch tool
             }
 
@@ -1001,7 +1048,7 @@
                 pen: 'crosshair',
                 'adding-text': 'text',
                 'adding-sticky': 'copy',
-                'adding-dot': 'copy',
+                'adding-sticker': 'copy',
                 select: 'default'
             };
             board.style.cursor = cursorMap[tool] || 'default';
@@ -1011,7 +1058,7 @@
         }
 
         function updateContextualToolbar() {
-            const allOptions = [penOptions, stickyOptions, textOptions, dotOptions];
+            const allOptions = [penOptions, stickyOptions, textOptions, stickerOptions];
             allOptions.forEach(opt => opt.classList.add('hidden'));
             contextOptionsContainer.classList.add('hidden');
 
@@ -1019,7 +1066,7 @@
                 pen: penOptions,
                 'adding-sticky': stickyOptions,
                 'adding-text': textOptions,
-                'adding-dot': dotOptions
+                'adding-sticker': stickerOptions
             };
 
             const selectedElem = jamState.frames[jamState.currentFrameIndex].find(e => e.id === selectedElementId);
@@ -1095,16 +1142,21 @@
                 loadingOverlay.classList.add('hidden');
                 setTimeout(() => {
                     nameModal.classList.remove('hidden');
-                }, 500);
-            }, 1000); // Show animation for 1 second
+                    nameModalContent.classList.add('visible');
+                }, 100);
+            }, 500); // Shorter loading time
         };
 
         nameSubmitBtn.addEventListener('click', () => {
             const name = nameInput.value.trim();
             if (name) {
                 userName = name;
-                nameModal.classList.add('hidden');
-                actionModal.classList.remove('hidden');
+                nameModalContent.classList.remove('visible');
+                setTimeout(() => {
+                    nameModal.classList.add('hidden');
+                    actionModal.classList.remove('hidden');
+                    actionModal.querySelector('.modal-content').classList.add('visible');
+                }, 300);
             } else {
                 showToast("Please enter a name to continue.");
             }
@@ -1113,18 +1165,34 @@
         newBoardBtn.addEventListener('click', () => {
             joinMode = 'create';
             boardNameTitle.textContent = 'Create a New Board';
-            actionModal.classList.add('hidden');
-            boardNameModal.classList.remove('hidden');
+            passwordContainer.classList.remove('hidden');
+            actionModal.querySelector('.modal-content').classList.remove('visible');
+            setTimeout(() => {
+                actionModal.classList.add('hidden');
+                boardNameModal.classList.remove('hidden');
+                boardNameModal.querySelector('.modal-content').classList.add('visible');
+            }, 300);
         });
 
         joinBoardBtn.addEventListener('click', () => {
             joinMode = 'join';
             boardNameTitle.textContent = 'Join an Existing Board';
-            actionModal.classList.add('hidden');
-            boardNameModal.classList.remove('hidden');
+            passwordContainer.classList.remove('hidden');
+            actionModal.querySelector('.modal-content').classList.remove('visible');
+            setTimeout(() => {
+                actionModal.classList.add('hidden');
+                boardNameModal.classList.remove('hidden');
+                boardNameModal.querySelector('.modal-content').classList.add('visible');
+            }, 300);
         });
 
         boardNameSubmitBtn.addEventListener('click', startConnection);
+
+        togglePasswordBtn.addEventListener('click', () => {
+            const isPassword = boardPasswordInput.type === 'password';
+            boardPasswordInput.type = isPassword ? 'text' : 'password';
+            togglePasswordBtn.innerHTML = `<i class="fas ${isPassword ? 'fa-eye-slash' : 'fa-eye'}"></i>`;
+        });
 
         leaveBoardBtn.addEventListener('click', () => {
             if (isHost) {
@@ -1137,6 +1205,7 @@
                 leaveConfirmBtn.textContent = 'Leave';
             }
             leaveModal.classList.remove('hidden');
+            leaveModal.querySelector('.modal-content').classList.add('visible');
         });
 
         leaveConfirmBtn.addEventListener('click', () => {
@@ -1145,12 +1214,13 @@
         });
 
         leaveCancelBtn.addEventListener('click', () => {
-            leaveModal.classList.add('hidden');
+            leaveModal.querySelector('.modal-content').classList.remove('visible');
+            setTimeout(() => leaveModal.classList.add('hidden'), 300);
         });
 
         toolStickyBtn.addEventListener('click', () => setActiveTool('adding-sticky'));
         toolTextBtn.addEventListener('click', () => setActiveTool('adding-text'));
-        toolDotBtn.addEventListener('click', () => setActiveTool('adding-dot'));
+        toolStickerBtn.addEventListener('click', () => setActiveTool('adding-sticker'));
         addImageBtn.addEventListener('click', () => imageUploadInput.click());
         toolSelectBtn.addEventListener('click', () => setActiveTool('select'));
         toolPenBtn.addEventListener('click', () => setActiveTool('pen'));
@@ -1207,11 +1277,18 @@
             }
         });
         
-        dotOptions.addEventListener('click', (e) => {
-            if (e.target.matches('.color-btn')) {
-                dotColor = e.target.dataset.color;
-                dotOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
+        stickerOptions.addEventListener('click', (e) => {
+            const colorBtn = e.target.closest('.color-btn');
+            const shapeBtn = e.target.closest('.shape-btn');
+            if (colorBtn) {
+                stickerColor = colorBtn.dataset.color;
+                stickerOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
+                colorBtn.classList.add('active');
+            }
+            if (shapeBtn) {
+                stickerShape = shapeBtn.dataset.shape;
+                 stickerOptions.querySelectorAll('.shape-btn').forEach(btn => btn.classList.remove('active'));
+                shapeBtn.classList.add('active');
             }
         });
 
