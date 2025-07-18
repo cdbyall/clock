@@ -185,17 +185,87 @@
         body.presentation-mode #main-app > aside {
             display: none;
         }
+        /* Loading Animation */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: #eef2f9;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease-out;
+        }
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .pulse-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(0.8);
+                opacity: 0.7;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col p-2 sm:p-4 gap-4">
 
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="pulse-dot"></div>
+    </div>
+
     <!-- Name Entry Modal -->
-    <div id="name-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+    <div id="name-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Welcome to Bam Joard!</h2>
             <p class="text-gray-600 mb-6">What's your name?</p>
             <input type="text" id="name-input" placeholder="Enter your name..." class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-400">
             <button id="name-submit-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all">Continue</button>
+        </div>
+    </div>
+
+    <!-- Action Choice Modal -->
+    <div id="action-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">What would you like to do?</h2>
+            <div class="flex flex-col gap-4">
+                <button id="new-board-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-md transition-all text-lg">New Board</button>
+                <button id="join-board-btn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-4 rounded-md transition-all text-lg">Join Board</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Board Name Modal -->
+     <div id="board-name-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+            <h2 id="board-name-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <p class="text-gray-600 mb-6">Board names are case-sensitive.</p>
+            <input type="text" id="board-name-input" placeholder="Enter board name..." class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-400">
+            <button id="board-name-submit-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all">Go</button>
+        </div>
+    </div>
+
+    <!-- Leave/End Board Modal -->
+    <div id="leave-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+            <h2 id="leave-modal-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <p id="leave-modal-text" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-center gap-4">
+                <button id="leave-confirm-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-md"></button>
+                <button id="leave-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-md">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -221,13 +291,13 @@
             <div class="flex items-center gap-2 sm:gap-4">
                 <button id="export-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold p-2 rounded-lg flex items-center gap-2" title="Export as PNG"><i class="fas fa-download"></i></button>
                 <button id="present-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold p-2 rounded-lg flex items-center gap-2" title="Presentation Mode"><i class="fas fa-play"></i></button>
-                <div class="flex items-center gap-2">
-                    <input type="text" id="board-name-input" placeholder="Board Name..." class="border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-400 w-32 sm:w-48">
-                    <button id="start-join-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-3 rounded-md transition-all">Go</button>
-                </div>
                 <button id="view-users-btn" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-3 rounded-full text-sm flex items-center">
                     <i class="fas fa-users sm:mr-2"></i>
                     <span id="user-count" class="hidden sm:inline">0</span>
+                </button>
+                <button id="leave-board-btn" class="hidden bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-2 px-4 rounded-lg text-sm flex items-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Leave</span>
                 </button>
             </div>
         </header>
@@ -299,18 +369,30 @@
     
     <script>
         // --- DOM ELEMENTS ---
+        const loadingOverlay = document.getElementById('loading-overlay');
         const nameModal = document.getElementById('name-modal');
         const nameInput = document.getElementById('name-input');
         const nameSubmitBtn = document.getElementById('name-submit-btn');
+        const actionModal = document.getElementById('action-modal');
+        const newBoardBtn = document.getElementById('new-board-btn');
+        const joinBoardBtn = document.getElementById('join-board-btn');
+        const boardNameModal = document.getElementById('board-name-modal');
+        const boardNameTitle = document.getElementById('board-name-title');
+        const boardNameInput = document.getElementById('board-name-input');
+        const boardNameSubmitBtn = document.getElementById('board-name-submit-btn');
+        const leaveModal = document.getElementById('leave-modal');
+        const leaveModalTitle = document.getElementById('leave-modal-title');
+        const leaveModalText = document.getElementById('leave-modal-text');
+        const leaveConfirmBtn = document.getElementById('leave-confirm-btn');
+        const leaveCancelBtn = document.getElementById('leave-cancel-btn');
         const mainApp = document.getElementById('main-app');
         const boardContainer = document.getElementById('board-container');
         const board = document.getElementById('board');
         const drawingCanvas = document.getElementById('drawing-canvas');
         const ctx = drawingCanvas.getContext('2d');
-        const boardNameInput = document.getElementById('board-name-input');
-        const startJoinBtn = document.getElementById('start-join-btn');
         const viewUsersBtn = document.getElementById('view-users-btn');
         const userCount = document.getElementById('user-count');
+        const leaveBoardBtn = document.getElementById('leave-board-btn');
         const usersModal = document.getElementById('users-modal');
         const closeUsersModalBtn = document.getElementById('close-users-modal-btn');
         const usersList = document.getElementById('users-list');
@@ -341,6 +423,7 @@
         let peer;
         let userName = null;
         let isHost = false;
+        let joinMode = 'create'; // 'create' or 'join'
         let connections = []; // Holds connection objects
         let connectedUsers = []; // Holds user names
         let jamState = {
@@ -406,7 +489,7 @@
         }
 
         // --- INITIALIZATION & CONNECTION ---
-        function startOrJoinBoard() {
+        function startConnection() {
             const boardName = boardNameInput.value.trim();
             if (!boardName) {
                 showToast("Please enter a board name.");
@@ -417,49 +500,64 @@
             
             showToast(`Connecting to "${boardName}"...`);
 
-            peer = new Peer(boardName, {
-                host: '0.peerjs.com',
-                port: 443,
-                path: '/',
-                pingInterval: 5000 
-            });
+            if (joinMode === 'create') {
+                peer = new Peer(boardName, {
+                    host: '0.peerjs.com', port: 443, path: '/', pingInterval: 5000 
+                });
 
-            peer.on('open', id => {
-                isHost = true;
-                connectedUsers = [{ name: userName, id: id }];
-                updateUsersUI();
-                showToast(`Board "${id}" created! Waiting for others...`);
-                jamState = { frames: [[]], currentFrameIndex: 0 };
-                history = [];
-                redoStack = [];
-                updateUndoRedoButtons();
-                renderBoard();
-            });
+                peer.on('open', id => {
+                    isHost = true;
+                    connectedUsers = [{ name: userName, id: id }];
+                    updateUsersUI();
+                    showToast(`Board "${id}" created! Waiting for others...`);
+                    jamState = { frames: [[]], currentFrameIndex: 0 };
+                    history = [];
+                    redoStack = [];
+                    updateUndoRedoButtons();
+                    renderBoard();
+                    boardNameModal.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                    leaveBoardBtn.classList.remove('hidden');
+                    resizeCanvas();
+                });
 
-            peer.on('connection', conn => {
-                setupConnection(conn);
-            });
+                peer.on('connection', conn => {
+                    setupConnection(conn);
+                });
 
-            peer.on('error', err => {
-                if (err.type === 'unavailable-id') {
-                    peer.destroy();
-                    isHost = false;
-                    peer = new Peer({
-                        host: '0.peerjs.com',
-                        port: 443,
-                        path: '/',
-                        pingInterval: 5000 
-                    });
+                peer.on('error', err => {
+                    if (err.type === 'unavailable-id') {
+                        showToast(`Board name "${boardName}" is already taken.`, 4000);
+                    } else {
+                        console.error('PeerJS error:', err);
+                        showToast(`Error: ${err.message}`, 5000);
+                    }
+                });
+            } else { // joinMode === 'join'
+                peer = new Peer({
+                    host: '0.peerjs.com', port: 443, path: '/', pingInterval: 5000 
+                });
+
+                peer.on('open', () => {
+                    const conn = peer.connect(boardName, { metadata: { name: userName } });
+                    setupConnection(conn);
                     
-                    peer.on('open', () => {
-                        const conn = peer.connect(boardName, { metadata: { name: userName } });
-                        setupConnection(conn);
-                    });
-                } else {
+                    // Check for connection failure after a timeout
+                    const connectionTimeout = setTimeout(() => {
+                        if (!conn.open) {
+                            showToast(`Could not connect to board "${boardName}". It may not exist.`, 5000);
+                            peer.destroy();
+                        }
+                    }, 8000);
+
+                    conn.on('open', () => clearTimeout(connectionTimeout));
+                });
+
+                 peer.on('error', err => {
                     console.error('PeerJS error:', err);
                     showToast(`Error: ${err.message}`, 5000);
-                }
-            });
+                });
+            }
         }
 
         function setupConnection(conn) {
@@ -472,6 +570,11 @@
                     connectedUsers.push({ name: newUserName, id: conn.peer });
                     broadcastUserList();
                     conn.send({ type: 'sync', state: jamState, users: connectedUsers.map(u => u.name) });
+                } else {
+                    boardNameModal.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                    leaveBoardBtn.classList.remove('hidden');
+                    resizeCanvas();
                 }
             });
             conn.on('data', data => {
@@ -498,6 +601,9 @@
                     connections = connections.filter(c => c.peer !== conn.peer);
                     connectedUsers = connectedUsers.filter(u => u.id !== conn.peer);
                     broadcastUserList();
+                } else {
+                    showToast("The host has ended the session.", 5000);
+                    setTimeout(() => window.location.reload(), 5000);
                 }
             });
         }
@@ -984,21 +1090,64 @@
         }
 
         // --- EVENT LISTENERS ---
+        window.onload = () => {
+            setTimeout(() => {
+                loadingOverlay.classList.add('hidden');
+                setTimeout(() => {
+                    nameModal.classList.remove('hidden');
+                }, 500);
+            }, 1000); // Show animation for 1 second
+        };
+
         nameSubmitBtn.addEventListener('click', () => {
             const name = nameInput.value.trim();
             if (name) {
                 userName = name;
                 nameModal.classList.add('hidden');
-                mainApp.classList.remove('hidden');
-                resizeCanvas();
-                setActiveTool('select');
-                updateUndoRedoButtons();
+                actionModal.classList.remove('hidden');
             } else {
                 showToast("Please enter a name to continue.");
             }
         });
 
-        startJoinBtn.addEventListener('click', startOrJoinBoard);
+        newBoardBtn.addEventListener('click', () => {
+            joinMode = 'create';
+            boardNameTitle.textContent = 'Create a New Board';
+            actionModal.classList.add('hidden');
+            boardNameModal.classList.remove('hidden');
+        });
+
+        joinBoardBtn.addEventListener('click', () => {
+            joinMode = 'join';
+            boardNameTitle.textContent = 'Join an Existing Board';
+            actionModal.classList.add('hidden');
+            boardNameModal.classList.remove('hidden');
+        });
+
+        boardNameSubmitBtn.addEventListener('click', startConnection);
+
+        leaveBoardBtn.addEventListener('click', () => {
+            if (isHost) {
+                leaveModalTitle.textContent = 'End Board for All?';
+                leaveModalText.textContent = 'This will disconnect everyone from the board.';
+                leaveConfirmBtn.textContent = 'End Board';
+            } else {
+                leaveModalTitle.textContent = 'Leave Board?';
+                leaveModalText.textContent = 'Are you sure you want to leave this board?';
+                leaveConfirmBtn.textContent = 'Leave';
+            }
+            leaveModal.classList.remove('hidden');
+        });
+
+        leaveConfirmBtn.addEventListener('click', () => {
+            if (peer) peer.destroy();
+            window.location.reload();
+        });
+
+        leaveCancelBtn.addEventListener('click', () => {
+            leaveModal.classList.add('hidden');
+        });
+
         toolStickyBtn.addEventListener('click', () => setActiveTool('adding-sticky'));
         toolTextBtn.addEventListener('click', () => setActiveTool('adding-text'));
         toolDotBtn.addEventListener('click', () => setActiveTool('adding-dot'));
@@ -1008,11 +1157,9 @@
         undoBtn.addEventListener('click', undo);
         redoBtn.addEventListener('click', redo);
         
-        // START: Frame Navigator Event Listener Fix
         addFrameBtn.addEventListener('mousedown', addFrame);
         nextFrameBtn.addEventListener('mousedown', nextFrame);
         prevFrameBtn.addEventListener('mousedown', prevFrame);
-        // END: Frame Navigator Event Listener Fix
         
         contextOptionsContainer.addEventListener('mousedown', e => e.stopPropagation());
         contextOptionsContainer.addEventListener('touchstart', e => e.stopPropagation());
@@ -1074,12 +1221,10 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const dataUrl = event.target.result;
-                    // START: Updated Image Size Limit Message
                     if (dataUrl.length > 500000) { // Limit to ~0.5MB
                         showToast("Image is too large. Please choose a file under 500KB.", 5000);
                         return;
                     }
-                    // END: Updated Image Size Limit Message
                     addElement('image', { src: dataUrl });
                 };
                 reader.readAsDataURL(file);
