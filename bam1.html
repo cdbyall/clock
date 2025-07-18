@@ -3,19 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blam Joard (P2P)</title>
+    <title>Bam Joard (P2P)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat&family=Lato&family=Montserrat&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- PeerJS library for WebRTC -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #eef2f9; /* A very light, calming blue */
+            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
         }
         #board-container {
             position: relative;
+            touch-action: none; /* Prevents scrolling while interacting with the board */
+            overflow: hidden; /* Hide parts of the board that are panned off-screen */
         }
         #board, #drawing-canvas {
             position: absolute;
@@ -23,6 +28,8 @@
             left: 0;
             width: 100%;
             height: 100%;
+            /* transform-origin is critical for future zooming features */
+            transform-origin: 0 0;
         }
         #board {
             background-image: radial-gradient(#dce4f2 1px, transparent 1px);
@@ -36,13 +43,15 @@
         }
         .joard-element {
             position: absolute;
-            padding: 1rem;
             border-radius: 0.5rem;
             cursor: move;
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Hide overflow for resize logic */
             z-index: 2; /* Above the board background */
+            border: 2px solid transparent;
+        }
+        .joard-element.locked {
+            cursor: not-allowed;
         }
         .joard-element textarea {
             background: transparent;
@@ -54,41 +63,51 @@
             padding: 0;
             margin: 0;
             font-family: inherit;
+            font-size: inherit;
             color: #1f2937;
-            flex-grow: 1;
-            line-height: 1.4;
+            line-height: 1.2; 
+            overflow: hidden;
+            cursor: text;
+        }
+        .joard-element textarea:disabled {
+            cursor: not-allowed;
         }
         .joard-element.sticky-note {
-            background-color: #fef9c3; /* Soothing yellow */
+            padding: 1rem;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            resize: none;
         }
         .joard-element.text-box {
+            padding: 0.5rem;
              background-color: transparent;
-             border: 2px dashed transparent;
-             resize: both;
         }
-        .joard-element.text-box:hover {
+        .joard-element.text-box:not(.selected):hover {
+            border-style: dashed;
             border-color: #9ca3af;
         }
         .joard-element.image {
             padding: 0;
-            resize: both;
             background-color: #fff;
-            border: 2px solid #cbd5e1;
+            overflow: hidden;
         }
         .joard-element.image img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: fill; 
         }
-        .delete-btn {
+        .joard-element.sticker {
+            padding: 0;
+            background-color: transparent;
+        }
+        .joard-element.sticker svg {
+            width: 100%;
+            height: 100%;
+            opacity: 0.7;
+        }
+        .context-btn {
             position: absolute;
-            top: -10px;
-            right: -10px;
-            width: 24px;
-            height: 24px;
-            background: #ef4444;
+            width: 28px;
+            height: 28px;
+            background: #4a5568;
             color: white;
             border-radius: 50%;
             display: flex;
@@ -98,18 +117,78 @@
             opacity: 0;
             transition: opacity 0.2s;
             z-index: 11;
+            visibility: hidden;
+            font-size: 14px;
         }
-        .joard-element:hover .delete-btn {
+        .delete-btn { top: 8px; right: 8px; background-color: #ef4444; }
+        .lock-btn { top: 8px; right: 44px; }
+        .layer-up-btn { bottom: 8px; left: 44px; }
+        .layer-down-btn { bottom: 8px; left: 8px; }
+        
+        .joard-element:hover .context-btn,
+        .joard-element.selected .context-btn {
             opacity: 1;
+            visibility: visible;
+        }
+        .joard-element.locked:hover .delete-btn,
+        .joard-element.locked.selected .delete-btn,
+        .joard-element.locked:hover .layer-up-btn,
+        .joard-element.locked.selected .layer-up-btn,
+        .joard-element.locked:hover .layer-down-btn,
+        .joard-element.locked.selected .layer-down-btn {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            right: -10px;
+            bottom: -10px;
+            background: #3b82f6;
+            border: 2px solid white;
+            border-radius: 50%;
+            cursor: nwse-resize;
+            visibility: hidden;
+            z-index: 12;
+        }
+        .joard-element.selected .resize-handle {
+            visibility: visible;
+        }
+        .joard-element.selected {
+            border: 2px solid #3b82f6 !important;
         }
         .tool-btn.active {
             background-color: #dbeafe;
             box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
         }
-        .color-btn.active {
-            transform: scale(1.2);
+        .color-btn.active, .font-btn.active, .size-btn.active, .shape-btn.active {
+            transform: scale(1.1);
             box-shadow: 0 0 0 2px white, 0 0 0 4px #4a90e2;
         }
+
+        /* Styles for text editing mode */
+        .joard-element.editing {
+            /* Hide the selection border and sticky note shadow during editing */
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .joard-element.editing .resize-handle,
+        .joard-element.editing .context-btn {
+            /* Hide handles and buttons */
+            visibility: hidden;
+            opacity: 0;
+        }
+
+        .joard-element.editing textarea {
+            /* Add a subtle outline to the active text area */
+            outline: 2px dashed #a0aec0;
+            outline-offset: 2px;
+            border-radius: 0.25rem;
+        }
+
         /* Toast Notification */
         #toast {
             position: fixed;
@@ -128,128 +207,297 @@
             top: 40px;
             opacity: 1;
         }
+        /* Presentation Mode */
+        body.presentation-mode #main-app > header,
+        body.presentation-mode #main-app > aside {
+            display: none;
+        }
+        /* Loading Animation */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: #eef2f9;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease-out;
+        }
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .pulse-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(0.8);
+                opacity: 0.7;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+        }
+        /* Modal Animation */
+        .modal-content {
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            transform: scale(0.9);
+            opacity: 0;
+        }
+        .modal-content.visible {
+            transform: scale(1);
+            opacity: 1;
+        }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col p-4 gap-4">
+<body class="h-screen w-screen flex flex-col p-2 sm:p-4 gap-4">
 
-    <!-- Name Entry Modal -->
-    <div id="name-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl text-center">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800">Welcome to Blam Joard!</h2>
+    <div id="loading-overlay">
+        <div class="pulse-dot"></div>
+    </div>
+
+    <div id="name-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div id="name-modal-content" class="modal-content bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Welcome to Bam Joard!</h2>
             <p class="text-gray-600 mb-6">What's your name?</p>
             <input type="text" id="name-input" placeholder="Enter your name..." class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-400">
             <button id="name-submit-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all">Continue</button>
         </div>
     </div>
 
+    <div id="action-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="modal-content bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">What would you like to do?</h2>
+            <div class="flex flex-col gap-4">
+                <button id="new-board-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-md transition-all text-lg">New Board</button>
+                <button id="join-board-btn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-4 rounded-md transition-all text-lg">Join Board</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="board-name-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+         <div class="modal-content bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+             <h2 id="board-name-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+             <p class="text-gray-600 mb-6">Board names are case-sensitive.</p>
+             <input type="text" id="board-name-input" placeholder="Enter board name..." class="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-400">
+             <div id="password-container" class="relative mb-4">
+                 <input type="password" id="board-password-input" placeholder="Password (optional)..." class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-400">
+                 <button id="toggle-password-btn" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+                     <i class="fas fa-eye"></i>
+                 </button>
+             </div>
+             <div class="flex items-center gap-4">
+                 <button id="board-name-back-btn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-md transition-all">Back</button>
+                 <button id="board-name-submit-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all">Go</button>
+             </div>
+         </div>
+     </div>
+
+    <div id="leave-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="modal-content bg-white p-8 rounded-lg shadow-xl text-center w-11/12 max-w-sm">
+            <h2 id="leave-modal-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <p id="leave-modal-text" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-center gap-4">
+                <button id="leave-confirm-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-md"></button>
+                <button id="leave-cancel-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-md">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div id="main-app" class="hidden h-full w-full flex flex-col gap-4">
-        <!-- Header & Connection UI -->
-        <header class="flex-shrink-0 flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
-            <h1 class="text-2xl font-bold text-gray-800">Blam Joard</h1>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <input type="text" id="board-name-input" placeholder="Enter a Board Name..." class="border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-400 w-48">
-                    <button id="start-join-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1 px-4 rounded-md transition-all">Start / Join Board</button>
-                </div>
-                <button id="view-users-btn" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-full text-sm flex items-center">
-                    <i class="fas fa-users mr-2"></i>
-                    <span id="user-count">0</span>
+        <header class="flex-shrink-0 flex items-center justify-between bg-white p-3 rounded-lg shadow-sm gap-4">
+            <h1 class="text-2xl font-bold text-gray-800 hidden sm:block">Bam Joard</h1>
+            
+            <div id="frame-bar" class="hidden flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                <button id="prev-frame-btn" title="Previous Frame" class="p-2 w-9 h-9 rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div id="frame-indicator" class="text-sm font-medium text-slate-700 px-4 py-1">1 / 1</div>
+                <button id="next-frame-btn" title="Next Frame" class="p-2 w-9 h-9 rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <div class="w-px h-6 bg-slate-200 mx-1"></div>
+                <button id="add-frame-btn" title="Add Frame" class="p-2 w-9 h-9 rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-4">
+                <button id="export-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold p-2 rounded-lg flex items-center gap-2" title="Export as PNG"><i class="fas fa-download"></i></button>
+                <button id="present-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold p-2 rounded-lg flex items-center gap-2" title="Presentation Mode"><i class="fas fa-play"></i></button>
+                <button id="view-users-btn" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-3 rounded-full text-sm flex items-center">
+                    <i class="fas fa-users sm:mr-2"></i>
+                    <span id="user-count" class="hidden sm:inline">0</span>
+                </button>
+                <button id="leave-board-btn" class="hidden bg-red-100 hover:bg-red-200 text-red-700 font-semibold py-2 px-4 rounded-lg text-sm flex items-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Leave</span>
                 </button>
             </div>
         </header>
 
-        <!-- Toolbar -->
-        <aside class="flex-shrink-0 flex items-center justify-center gap-2 bg-white p-2 rounded-lg shadow-sm">
-            <button id="tool-select" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2" title="Select and Move">
-                <i class="fas fa-mouse-pointer text-gray-600"></i>
-            </button>
-            <button id="tool-pen" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2" title="Draw">
-                <i class="fas fa-pen text-gray-600"></i>
-            </button>
-            <button id="add-sticky-btn" class="tool-btn bg-white hover:bg-yellow-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
-                <i class="fas fa-sticky-note text-yellow-500"></i>
-            </button>
-            <button id="add-text-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2">
-                <i class="fas fa-font text-gray-600"></i>
-            </button>
-            <button id="add-image-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2" title="Upload Image">
-                <i class="fas fa-image text-gray-600"></i>
-            </button>
-            <input type="file" id="image-upload-input" class="hidden" accept="image/*">
-            <div id="pen-options" class="hidden items-center gap-2 ml-2 border-l pl-2">
-                <button class="color-btn w-6 h-6 rounded-full" style="background-color: #000000;" data-color="#000000"></button>
-                <button class="color-btn w-6 h-6 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
-                <button class="color-btn w-6 h-6 rounded-full" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
-                <button class="color-btn w-6 h-6 rounded-full" style="background-color: #22c55e;" data-color="#22c55e"></button>
-            </div>
-        </aside>
-
-        <!-- Main Board Area -->
         <main id="board-container" class="flex-grow bg-white rounded-lg shadow-inner">
             <div id="board"></div>
             <canvas id="drawing-canvas"></canvas>
         </main>
+
+        <aside class="flex-shrink-0 flex items-center justify-center gap-2 bg-white p-2 rounded-lg shadow-sm relative z-20">
+            <button id="undo-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50" title="Undo"><i class="fas fa-undo"></i></button>
+            <button id="redo-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center gap-2 disabled:opacity-50" title="Redo"><i class="fas fa-redo"></i></button>
+            <div class="w-px h-8 bg-gray-200"></div>
+            <button id="tool-select" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Select & Pan"><i class="fas fa-mouse-pointer"></i></button>
+            <button id="tool-pen" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Draw"><i class="fas fa-pen"></i></button>
+            <button id="tool-eraser" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Erase"><i class="fas fa-eraser"></i></button>
+            <button id="tool-sticky" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Sticky Note"><i class="fas fa-sticky-note"></i></button>
+            <button id="tool-text" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Text"><i class="fas fa-font"></i></button>
+            <button id="add-image-btn" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Image"><i class="fas fa-image"></i></button>
+            <button id="tool-sticker" class="tool-btn bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg flex items-center" title="Sticker"><i class="fas fa-star"></i></button>
+            <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+            
+            <div id="context-options-container" class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-white rounded-lg shadow-md z-30">
+                <div id="pen-options" class="hidden items-center gap-2">
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #000000;" data-color="#000000"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #22c55e;" data-color="#22c55e"></button>
+                </div>
+                <div id="sticky-options" class="hidden items-center gap-2">
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #fef9c3;" data-color="#fef9c3"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #dcfce7;" data-color="#dcfce7"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #dbeafe;" data-color="#dbeafe"></button>
+                    <button class="color-btn w-8 h-8 rounded-md" style="background-color: #fce7f3;" data-color="#fce7f3"></button>
+                </div>
+                <div id="text-options" class="hidden items-center gap-2">
+                    <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Inter" style="font-family: 'Inter', sans-serif;">Aa</button>
+                    <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Lato" style="font-family: 'Lato', sans-serif;">Aa</button>
+                    <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Montserrat" style="font-family: 'Montserrat', sans-serif;">Aa</button>
+                    <button class="font-btn p-2 rounded-md hover:bg-gray-100" data-font="Caveat" style="font-family: 'Caveat', cursive; font-size: 1.5rem;">Aa</button>
+                </div>
+                 <div id="sticker-options" class="hidden items-center gap-2">
+                    <button class="shape-btn p-2 rounded-md" data-shape="circle"><i class="fas fa-circle"></i></button>
+                    <button class="shape-btn p-2 rounded-md" data-shape="star"><i class="fas fa-star"></i></button>
+                    <button class="shape-btn p-2 rounded-md" data-shape="triangle"><i class="fas fa-caret-up fa-lg"></i></button>
+                    <div class="w-px h-6 bg-gray-200 mx-1"></div>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #ef4444;" data-color="#ef4444"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #3b82f6;" data-color="#3b82f6"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #22c55e;" data-color="#22c55e"></button>
+                    <button class="color-btn w-8 h-8 rounded-full" style="background-color: #f59e0b;" data-color="#f59e0b"></button>
+                </div>
+            </div>
+        </aside>
     </div>
     
-    <!-- Toast Notification Element -->
     <div id="toast"></div>
 
-    <!-- Users Modal -->
     <div id="users-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-80">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-xs">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-gray-800">Connected Users</h2>
                 <button id="close-users-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
             </div>
             <ul id="users-list" class="space-y-2">
-                <!-- User list will be populated here -->
-            </ul>
+                </ul>
         </div>
     </div>
-
+    
     <script>
         // --- DOM ELEMENTS ---
+        const loadingOverlay = document.getElementById('loading-overlay');
         const nameModal = document.getElementById('name-modal');
+        const nameModalContent = document.getElementById('name-modal-content');
         const nameInput = document.getElementById('name-input');
         const nameSubmitBtn = document.getElementById('name-submit-btn');
+        const actionModal = document.getElementById('action-modal');
+        const newBoardBtn = document.getElementById('new-board-btn');
+        const joinBoardBtn = document.getElementById('join-board-btn');
+        const boardNameModal = document.getElementById('board-name-modal');
+        const boardNameTitle = document.getElementById('board-name-title');
+        const boardNameInput = document.getElementById('board-name-input');
+        const passwordContainer = document.getElementById('password-container');
+        const boardPasswordInput = document.getElementById('board-password-input');
+        const togglePasswordBtn = document.getElementById('toggle-password-btn');
+        const boardNameSubmitBtn = document.getElementById('board-name-submit-btn');
+        const boardNameBackBtn = document.getElementById('board-name-back-btn');
+        const leaveModal = document.getElementById('leave-modal');
+        const leaveModalTitle = document.getElementById('leave-modal-title');
+        const leaveModalText = document.getElementById('leave-modal-text');
+        const leaveConfirmBtn = document.getElementById('leave-confirm-btn');
+        const leaveCancelBtn = document.getElementById('leave-cancel-btn');
         const mainApp = document.getElementById('main-app');
         const boardContainer = document.getElementById('board-container');
         const board = document.getElementById('board');
         const drawingCanvas = document.getElementById('drawing-canvas');
         const ctx = drawingCanvas.getContext('2d');
-        const boardNameInput = document.getElementById('board-name-input');
-        const startJoinBtn = document.getElementById('start-join-btn');
         const viewUsersBtn = document.getElementById('view-users-btn');
         const userCount = document.getElementById('user-count');
+        const leaveBoardBtn = document.getElementById('leave-board-btn');
         const usersModal = document.getElementById('users-modal');
         const closeUsersModalBtn = document.getElementById('close-users-modal-btn');
         const usersList = document.getElementById('users-list');
+        const undoBtn = document.getElementById('undo-btn');
+        const redoBtn = document.getElementById('redo-btn');
         const toolSelectBtn = document.getElementById('tool-select');
         const toolPenBtn = document.getElementById('tool-pen');
-        const addStickyBtn = document.getElementById('add-sticky-btn');
-        const addTextBtn = document.getElementById('add-text-btn');
+        const toolEraserBtn = document.getElementById('tool-eraser');
+        const toolStickyBtn = document.getElementById('tool-sticky');
+        const toolTextBtn = document.getElementById('tool-text');
+        const toolStickerBtn = document.getElementById('tool-sticker');
         const addImageBtn = document.getElementById('add-image-btn');
         const imageUploadInput = document.getElementById('image-upload-input');
+        const exportBtn = document.getElementById('export-btn');
+        const presentBtn = document.getElementById('present-btn');
+        const contextOptionsContainer = document.getElementById('context-options-container');
         const penOptions = document.getElementById('pen-options');
+        const stickyOptions = document.getElementById('sticky-options');
+        const textOptions = document.getElementById('text-options');
+        const stickerOptions = document.getElementById('sticker-options');
         const toast = document.getElementById('toast');
+        const frameBar = document.getElementById('frame-bar');
+        const frameIndicator = document.getElementById('frame-indicator');
+        const prevFrameBtn = document.getElementById('prev-frame-btn');
+        const nextFrameBtn = document.getElementById('next-frame-btn');
+        const addFrameBtn = document.getElementById('add-frame-btn');
 
         // --- APP STATE ---
         let peer;
         let userName = null;
         let isHost = false;
-        let connections = []; // Holds connection objects
+        let joinMode = 'create'; // 'create' or 'join'
+        let connections = []; // Holds connection objects to clients (for host) or to the host (for clients)
         let connectedUsers = []; // Holds user names
-        let boardState = [];
-        let activeTool = 'select'; // 'select', 'pen'
+        let jamState = {
+            frames: [[]], // An array of frames, where each frame is an array of objects
+            currentFrameIndex: 0
+        };
+        let activeTool = 'select'; // 'select', 'pen', 'eraser', 'adding-sticky', 'adding-text', 'adding-sticker'
         let penColor = '#000000';
+        let stickyColor = '#fef9c3';
+        let textFont = 'Inter';
+        let stickerColor = '#ef4444';
+        let stickerShape = 'circle';
         let isDrawing = false;
+        let isErasing = false;
         let currentPath = [];
         
-        // --- DRAG STATE ---
-        let activeElement = null;
+        // --- HISTORY STATE ---
+        let history = [];
+        let redoStack = [];
+        
+        // --- INTERACTION STATE ---
+        let selectedElementId = null;
         let isDragging = false;
+        let isResizing = false;
+        let isPanning = false;
         let initialPos = { x: 0, y: 0 };
-        let resizeObserver;
+        let initialElementState = { x: 0, y: 0, width: 0, height: 0 };
+        let viewState = { panX: 0, panY: 0 };
+        let initialPan = { x: 0, y: 0 };
 
         // --- UI UTILITIES ---
         function showToast(message, duration = 3000) {
@@ -260,9 +508,118 @@
             }, duration);
         }
 
+        // --- HISTORY MANAGEMENT (HOST-ONLY) ---
+        function recordHistory() {
+            if (!isHost) return;
+            history.push(JSON.stringify(jamState));
+            redoStack = []; // Clear redo stack on new action
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (!isHost) return; // Only host can undo/redo the authoritative state
+            if (history.length === 0) return;
+            redoStack.push(JSON.stringify(jamState));
+            jamState = JSON.parse(history.pop());
+            renderBoard();
+            broadcastStateFromHost();
+            updateUndoRedoButtons();
+        }
+
+        function redo() {
+            if (!isHost) return;
+            if (redoStack.length === 0) return;
+            history.push(JSON.stringify(jamState));
+            jamState = JSON.parse(redoStack.pop());
+            renderBoard();
+            broadcastStateFromHost();
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            // Undo/redo is a host-only feature in this model
+            undoBtn.disabled = !isHost || history.length === 0;
+            redoBtn.disabled = !isHost || redoStack.length === 0;
+        }
+
+        // --- P2P NETWORKING ---
+
+        // Client sends an action to the host
+        function sendActionToServer(actionType, payload) {
+            if (isHost || connections.length === 0) return;
+            const data = { type: 'action', action: actionType, payload: payload };
+            connections[0].send(data);
+        }
+
+        // Host broadcasts its authoritative state to all clients
+        function broadcastStateFromHost() {
+            if (!isHost) return;
+            const data = { type: 'update', state: jamState };
+            connections.forEach(conn => {
+                if (conn.open) conn.send(data);
+            });
+        }
+        
+        // Host processes an action received from a client
+        function processClientAction(action, payload) {
+            if (!isHost) return;
+            
+            recordHistory();
+            
+            let element;
+
+            switch (action) {
+                case 'add-element':
+                    _addElement(payload.type, payload.data);
+                    break;
+                case 'add-stroke':
+                    _addStroke(payload);
+                    break;
+                case 'update-element-content':
+                    element = findElement(payload.id);
+                    if (element) element.content = payload.content;
+                    break;
+                case 'drag-element':
+                    element = findElement(payload.id);
+                    if (element) {
+                        element.x = payload.x;
+                        element.y = payload.y;
+                    }
+                    break;
+                case 'resize-element':
+                     element = findElement(payload.id);
+                    if (element) {
+                        element.width = payload.width;
+                        element.height = payload.height;
+                    }
+                    break;
+                case 'delete-element':
+                    jamState.frames[jamState.currentFrameIndex] = jamState.frames[jamState.currentFrameIndex].filter(el => el.id !== payload.id);
+                    break;
+                case 'layer-element':
+                    if (payload.direction === 'up') {
+                         _moveElementForward(payload.id);
+                    } else {
+                         _moveElementBackward(payload.id);
+                    }
+                    break;
+                case 'switch-frame':
+                    jamState.currentFrameIndex = payload.index;
+                    break;
+                case 'add-frame':
+                    jamState.frames.push([]);
+                    jamState.currentFrameIndex = jamState.frames.length - 1;
+                    break;
+            }
+
+            // After processing, broadcast the new truth to everyone
+            broadcastStateFromHost();
+        }
+
         // --- INITIALIZATION & CONNECTION ---
-        function startOrJoinBoard() {
+        function startConnection() {
             const boardName = boardNameInput.value.trim();
+            const password = boardPasswordInput.value;
             if (!boardName) {
                 showToast("Please enter a board name.");
                 return;
@@ -271,90 +628,114 @@
             if (peer) { peer.destroy(); }
             
             showToast(`Connecting to "${boardName}"...`);
+            const peerId = password ? `${boardName}-${password}` : boardName;
 
-            peer = new Peer(boardName, {
-                host: '0.peerjs.com',
-                port: 443,
-                path: '/',
-                pingInterval: 5000 
-            });
+            if (joinMode === 'create') {
+                peer = new Peer(peerId, {
+                    host: '0.peerjs.com', port: 443, path: '/', pingInterval: 5000 
+                });
 
-            peer.on('open', id => {
-                isHost = true;
-                connectedUsers = [{ name: userName, id: id }];
-                updateUsersUI();
-                showToast(`Board "${id}" created! Waiting for others...`);
-                boardState = [];
-                renderBoard();
-            });
-
-            peer.on('connection', conn => {
-                setupConnection(conn);
-            });
-
-            peer.on('error', err => {
-                if (err.type === 'unavailable-id') {
-                    peer.destroy();
-                    isHost = false;
-                    peer = new Peer({
-                        host: '0.peerjs.com',
-                        port: 443,
-                        path: '/',
-                        pingInterval: 5000 
-                    });
+                peer.on('open', id => {
+                    isHost = true;
+                    showToast(`Board "${boardName}" created! Waiting for others...`);
                     
-                    peer.on('open', () => {
-                        const conn = peer.connect(boardName, { metadata: { name: userName } });
-                        setupConnection(conn);
-                    });
-                } else {
-                    console.error('PeerJS error:', err);
-                    showToast(`Error: ${err.message}`, 5000);
-                }
-            });
-        }
+                    // Setup board state
+                    jamState = { frames: [[]], currentFrameIndex: 0 };
+                    history = [];
+                    redoStack = [];
+                    
+                    // Show the main application UI
+                    boardNameModal.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                    leaveBoardBtn.classList.remove('hidden');
+                    
+                    // Render and update UI elements now that they are visible
+                    resizeCanvas();
+                    renderBoard();
+                    updateUsersUI();
+                    updateUndoRedoButtons();
+                });
 
-        function initializeResizeObserver() {
-            resizeObserver = new ResizeObserver(entries => {
-                for (let entry of entries) {
-                    const id = entry.target.id;
-                    const targetElement = boardState.find(e => e.id === id);
-                    if (targetElement) {
-                        window.requestAnimationFrame(() => {
-                            targetElement.width = entry.contentRect.width;
-                            targetElement.height = entry.contentRect.height;
-                        });
+                peer.on('connection', conn => {
+                    setupConnection(conn);
+                });
+
+                peer.on('error', err => {
+                    if (err.type === 'unavailable-id') {
+                        showToast(`Board name "${boardName}" is already taken.`, 4000);
+                    } else {
+                        console.error('PeerJS error:', err);
+                        showToast(`Error: ${err.message}`, 5000);
                     }
-                }
-            });
+                });
+            } else { // joinMode === 'join'
+                peer = new Peer({
+                    host: '0.peerjs.com', port: 443, path: '/', pingInterval: 5000 
+                });
+
+                peer.on('open', () => {
+                    const conn = peer.connect(peerId, { metadata: { name: userName } });
+                    connections = [conn]; // Client's single connection to the host
+                    setupConnection(conn);
+                    
+                    const connectionTimeout = setTimeout(() => {
+                        if (!conn.open) {
+                            showToast(`Could not connect to board "${boardName}". Check the name and password.`, 5000);
+                            peer.destroy();
+                        }
+                    }, 8000);
+
+                    conn.on('open', () => clearTimeout(connectionTimeout));
+                });
+
+                 peer.on('error', err => {
+                     console.error('PeerJS error:', err);
+                     showToast(`Error: ${err.message}`, 5000);
+                 });
+            }
         }
 
         function setupConnection(conn) {
-            conn.on('open', () => {
+            if (isHost) {
                 connections.push(conn);
-                
+                conn.on('data', data => {
+                    if (data.type === 'action') {
+                        processClientAction(data.action, data.payload);
+                    }
+                });
+            } else { // Client logic
+                conn.on('data', data => {
+                    if (data.type === 'sync' || data.type === 'update') {
+                        jamState = data.state;
+                        history = []; redoStack = []; // Clients don't have history
+                        renderBoard();
+                        updateUndoRedoButtons();
+                        if (data.users) {
+                            connectedUsers = data.users.map(name => ({name}));
+                            updateUsersUI();
+                        }
+                    } else if (data.type === 'user-list') {
+                        connectedUsers = data.users.map(name => ({name}));
+                        updateUsersUI();
+                    }
+                });
+            }
+            
+            conn.on('open', () => {
                 if (isHost) {
                     const newUserName = conn.metadata?.name || 'Anonymous';
                     showToast(`User "${newUserName}" has joined.`);
                     connectedUsers.push({ name: newUserName, id: conn.peer });
                     broadcastUserList();
-                    conn.send({ type: 'sync', state: boardState, users: connectedUsers.map(u => u.name) });
+                    conn.send({ type: 'sync', state: jamState, users: connectedUsers.map(u => u.name) });
+                } else {
+                    boardNameModal.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                    leaveBoardBtn.classList.remove('hidden');
+                    resizeCanvas();
                 }
             });
-            conn.on('data', data => {
-                if (data.type === 'sync') {
-                    boardState = data.state;
-                    connectedUsers = data.users.map(name => ({name}));
-                    renderBoard();
-                    updateUsersUI();
-                } else if (data.type === 'update') {
-                    boardState = data.state;
-                    renderBoard();
-                } else if (data.type === 'user-list') {
-                    connectedUsers = data.users.map(name => ({name}));
-                    updateUsersUI();
-                }
-            });
+            
             conn.on('close', () => {
                 if (isHost) {
                     const remoteUser = connectedUsers.find(u => u.id === conn.peer);
@@ -362,14 +743,10 @@
                     connections = connections.filter(c => c.peer !== conn.peer);
                     connectedUsers = connectedUsers.filter(u => u.id !== conn.peer);
                     broadcastUserList();
+                } else {
+                    showToast("The host has ended the session.", 5000);
+                    setTimeout(() => window.location.reload(), 5000);
                 }
-            });
-        }
-
-        function broadcastState() {
-            const data = { type: 'update', state: boardState };
-            connections.forEach(conn => {
-                if (conn.open) conn.send(data);
             });
         }
         
@@ -383,12 +760,9 @@
 
         function updateUsersUI() {
             if (!userName) return;
-
             const userNames = connectedUsers.map(u => u.name);
-            
             viewUsersBtn.classList.remove('hidden');
             userCount.textContent = userNames.length;
-
             usersList.innerHTML = '';
             userNames.forEach(name => {
                 const li = document.createElement('li');
@@ -402,285 +776,360 @@
             });
         }
 
-        // --- ELEMENT & DRAWING CREATION ---
-        function addElement(type, data = {}) {
+        // --- ELEMENT & DRAWING CREATION (CORE LOGIC) ---
+        // These "_" functions modify the state directly and are only called by the host.
+        function _addElement(type, data) {
             const newElement = {
                 id: `elem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 type: type,
-                x: 100 + (boardState.filter(e => e.type !== 'stroke').length % 5) * 20,
-                y: 100 + (boardState.filter(e => e.type !== 'stroke').length % 5) * 20,
+                x: data.x || 100,
+                y: data.y || 100,
+                locked: false,
                 ...data
             };
-
             if (type === 'sticky-note') {
-                newElement.content = 'Edit me!';
-                newElement.width = 200;
-                newElement.height = 200;
+                newElement.content = 'Edit me!'; newElement.width = 200; newElement.height = 200;
+                newElement.color = data.color || '#fef9c3';
             } else if (type === 'text-box') {
-                newElement.content = 'Type something...';
-                newElement.width = 200;
-                newElement.height = 150;
+                newElement.content = ''; newElement.width = 200; newElement.height = 60;
+                newElement.fontFamily = data.fontFamily || 'Inter';
             } else if (type === 'image') {
-                newElement.width = 300;
-                newElement.height = 300;
+                newElement.width = 300; newElement.height = 300;
+            } else if (type === 'sticker') {
+                newElement.width = 30; newElement.height = 30;
+                newElement.color = data.color || '#ef4444';
+                newElement.shape = data.shape || 'circle';
             }
-
-            boardState.push(newElement);
-            renderBoard();
-            broadcastState();
+            jamState.frames[jamState.currentFrameIndex].push(newElement);
+            return newElement.id;
         }
-
-        function addStroke() {
-            if (currentPath.length < 2) return;
+        function _addStroke(strokeData) {
             const newStroke = {
                 id: `stroke_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                type: 'stroke',
-                points: currentPath,
-                color: penColor,
-                width: 4
+                type: 'stroke', ...strokeData
             };
-            boardState.push(newStroke);
-            broadcastState();
+            jamState.frames[jamState.currentFrameIndex].push(newStroke);
+        }
+
+        // --- ACTION DISPATCHERS ---
+        // These functions are called by user interactions. They decide whether to act locally (host) or send to server (client).
+        function addElement(type, data = {}) {
+            if (isHost) {
+                recordHistory();
+                const newId = _addElement(type, data);
+                renderBoard();
+                broadcastStateFromHost();
+                return newId;
+            } else {
+                sendActionToServer('add-element', { type: type, data: data });
+            }
+        }
+        function addStroke() {
+            if (currentPath.length < 2) return;
+            const strokeData = { points: currentPath, color: penColor, width: 4 };
+            if (isHost) {
+                recordHistory();
+                _addStroke(strokeData);
+                broadcastStateFromHost();
+            } else {
+                sendActionToServer('add-stroke', strokeData);
+            }
         }
 
         // --- RENDERING ---
+        function applyViewTransform() {
+            const transform = `translate(${viewState.panX}px, ${viewState.panY}px)`;
+            board.style.transform = transform;
+            drawingCanvas.style.transform = transform;
+        }
+        function findElement(id) {
+            return jamState.frames[jamState.currentFrameIndex].find(el => el.id === id);
+        }
         function renderBoard() {
+            applyViewTransform();
+            const currentFrame = jamState.frames[jamState.currentFrameIndex];
             board.innerHTML = '';
-            if (resizeObserver) resizeObserver.disconnect();
             ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-
-            boardState.forEach(elemData => {
+            currentFrame.forEach(elemData => {
                 if (elemData.type === 'stroke') {
                     drawStroke(elemData);
                 } else {
                     renderDivElement(elemData);
                 }
             });
+            updateFrameIndicator();
         }
-
+        const stickerShapes = {
+            circle: `<circle cx="50" cy="50" r="50"/>`,
+            star: `<polygon points="50,0 61.8,38.2 100,38.2 69.1,61.8 80.9,100 50,76.4 19.1,100 30.9,61.8 0,38.2 38.2,38.2"/>`,
+            triangle: `<polygon points="50,0 100,100 0,100"/>`
+        };
         function renderDivElement(elemData) {
             const elemDiv = document.createElement('div');
             elemDiv.id = elemData.id;
             elemDiv.className = `joard-element ${elemData.type}`;
-            elemDiv.style.left = `${elemData.x}px`;
-            elemDiv.style.top = `${elemData.y}px`;
-            elemDiv.style.width = `${elemData.width}px`;
-            elemDiv.style.height = `${elemData.height}px`;
+            if (elemData.id === selectedElementId) elemDiv.classList.add('selected');
+            if (elemData.locked) elemDiv.classList.add('locked');
+            elemDiv.style.left = `${elemData.x}px`; elemDiv.style.top = `${elemData.y}px`;
+            elemDiv.style.width = `${elemData.width}px`; elemDiv.style.height = `${elemData.height}px`;
+            if(elemData.type === 'sticky-note') elemDiv.style.backgroundColor = elemData.color;
+            if(elemData.type === 'text-box') { elemDiv.style.fontFamily = elemData.fontFamily; elemDiv.style.fontSize = `${elemData.height * 0.7}px`; }
 
             if (elemData.type === 'image') {
                 const img = document.createElement('img');
                 img.src = elemData.src;
                 img.onerror = () => { img.src = 'https://placehold.co/300x300/eef2f9/333?text=Image+Not+Found'; };
                 elemDiv.appendChild(img);
+            } else if (elemData.type === 'sticker') {
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svg.setAttribute('viewBox', '0 0 100 100');
+                svg.innerHTML = stickerShapes[elemData.shape] || stickerShapes.circle;
+                svg.style.fill = elemData.color;
+                elemDiv.appendChild(svg);
             } else {
                 const textArea = document.createElement('textarea');
                 textArea.value = elemData.content;
+                textArea.style.fontFamily = 'inherit'; textArea.style.fontSize = 'inherit';
+                textArea.disabled = elemData.locked;
+                
                 textArea.addEventListener('input', () => {
-                    const targetElement = boardState.find(e => e.id === elemData.id);
-                    if (targetElement) {
-                        targetElement.content = textArea.value;
-                        if (targetElement.type === 'sticky-note') {
-                            adjustStickyFontSize(textArea);
+                    if (isHost) {
+                        const targetElement = findElement(elemData.id);
+                        if (targetElement) { targetElement.content = textArea.value; broadcastStateFromHost(); }
+                    }
+                });
+                textArea.addEventListener('focus', () => elemDiv.classList.add('editing'));
+                textArea.addEventListener('blur', () => {
+                    elemDiv.classList.remove('editing');
+                    if (!isHost) {
+                        const element = findElement(elemData.id);
+                        if (element && textArea.value !== element.content) {
+                            sendActionToServer('update-element-content', { id: elemData.id, content: textArea.value });
                         }
-                        broadcastState();
                     }
                 });
                 elemDiv.appendChild(textArea);
             }
 
             const deleteBtn = document.createElement('div');
-            deleteBtn.className = 'delete-btn';
+            deleteBtn.className = 'context-btn delete-btn';
             deleteBtn.innerHTML = '<i class="fas fa-times fa-xs"></i>';
-            deleteBtn.addEventListener('click', (e) => {
+            const deleteHandler = (e) => {
                 e.stopPropagation();
-                boardState = boardState.filter(e => e.id !== elemData.id);
-                renderBoard();
-                broadcastState();
-            });
-
+                if (findElement(elemData.id)?.locked) return;
+                if (isHost) { recordHistory(); jamState.frames[jamState.currentFrameIndex] = jamState.frames[jamState.currentFrameIndex].filter(el => el.id !== elemData.id); renderBoard(); broadcastStateFromHost(); } 
+                else { sendActionToServer('delete-element', { id: elemData.id }); }
+                selectedElementId = null;
+                updateContextualToolbar();
+            };
+            deleteBtn.addEventListener('mousedown', deleteHandler);
+            deleteBtn.addEventListener('touchstart', deleteHandler);
             elemDiv.appendChild(deleteBtn);
+
+            if (isHost) {
+                const lockBtn = document.createElement('div');
+                lockBtn.className = 'context-btn lock-btn';
+                lockBtn.innerHTML = `<i class="fas ${elemData.locked ? 'fa-lock' : 'fa-lock-open'} fa-xs"></i>`;
+                lockBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); recordHistory(); const elem = findElement(elemData.id); if(elem) elem.locked = !elem.locked; renderBoard(); broadcastStateFromHost(); });
+                elemDiv.appendChild(lockBtn);
+            }
+
+            if (!elemData.locked) {
+                const layerHandler = (e, direction) => { e.stopPropagation(); if (isHost) { recordHistory(); direction === 'up' ? _moveElementForward(elemData.id) : _moveElementBackward(elemData.id); renderBoard(); broadcastStateFromHost(); } else { sendActionToServer('layer-element', { id: elemData.id, direction: direction }); } };
+                const layerUpBtn = document.createElement('div');
+                layerUpBtn.className = 'context-btn layer-up-btn';
+                layerUpBtn.innerHTML = '<i class="fas fa-arrow-up fa-xs"></i>';
+                layerUpBtn.title = 'Bring Forward';
+                layerUpBtn.addEventListener('mousedown', (e) => layerHandler(e, 'up'));
+                layerUpBtn.addEventListener('touchstart', (e) => layerHandler(e, 'up'));
+                elemDiv.appendChild(layerUpBtn);
+                const layerDownBtn = document.createElement('div');
+                layerDownBtn.className = 'context-btn layer-down-btn';
+                layerDownBtn.innerHTML = '<i class="fas fa-arrow-down fa-xs"></i>';
+                layerDownBtn.title = 'Send Backward';
+                layerDownBtn.addEventListener('mousedown', (e) => layerHandler(e, 'down'));
+                layerDownBtn.addEventListener('touchstart', (e) => layerHandler(e, 'down'));
+                elemDiv.appendChild(layerDownBtn);
+            }
+
+            if ((elemData.type === 'text-box' || elemData.type === 'image') && !elemData.locked) {
+                const resizeHandle = document.createElement('div');
+                resizeHandle.className = 'resize-handle';
+                elemDiv.appendChild(resizeHandle);
+            }
             board.appendChild(elemDiv);
-
-            if (elemData.type === 'text-box' || elemData.type === 'image') {
-                resizeObserver.observe(elemDiv);
-            }
-            if (elemData.type === 'sticky-note') {
-                adjustStickyFontSize(elemDiv.querySelector('textarea'));
-            }
         }
-
-        function adjustStickyFontSize(textArea) {
-            const container = textArea.parentElement;
-            let fontSize = 20;
-            textArea.style.fontSize = `${fontSize}px`;
-            while ((textArea.scrollHeight > container.clientHeight || textArea.scrollWidth > container.clientWidth) && fontSize > 8) {
-                fontSize--;
-                textArea.style.fontSize = `${fontSize}px`;
-            }
-        }
-
-        function drawStroke(strokeData) {
-            ctx.beginPath();
-            ctx.strokeStyle = strokeData.color;
-            ctx.lineWidth = strokeData.width;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            if (strokeData.points.length > 0) {
-                ctx.moveTo(strokeData.points[0].x, strokeData.points[0].y);
-                for (let i = 1; i < strokeData.points.length; i++) {
-                    ctx.lineTo(strokeData.points[i].x, strokeData.points[i].y);
-                }
-            }
-            ctx.stroke();
-        }
+        function drawStroke(strokeData) { /* ... unchanged ... */ }
 
         // --- CANVAS & INTERACTIVITY ---
-        function resizeCanvas() {
-            if (!mainApp.classList.contains('hidden')) {
-                const rect = boardContainer.getBoundingClientRect();
-                drawingCanvas.width = rect.width;
-                drawingCanvas.height = rect.height;
-                renderBoard();
-            }
-        }
-
-        function getMousePos(evt) {
-            const rect = drawingCanvas.getBoundingClientRect();
-            return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
-        }
-
+        function resizeCanvas() { /* ... unchanged ... */ }
+        function getEventPos(evt) { /* ... unchanged ... */ }
+        function eraseStrokesAt(pos) { /* ... unchanged ... */ }
         function handleMouseDown(e) {
-            if (activeTool === 'pen') {
-                isDrawing = true;
-                currentPath = [getMousePos(e)];
-            } else if (activeTool === 'select') {
-                const target = e.target.closest('.joard-element');
-                if (!target) return;
-                activeElement = target;
-                isDragging = true;
-                const rect = target.getBoundingClientRect();
-                initialPos.x = e.clientX - rect.left;
-                initialPos.y = e.clientY - rect.top;
-                target.style.zIndex = 1000;
-            }
-        }
-
-        function handleMouseMove(e) {
-            if (isDrawing && activeTool === 'pen') {
-                const pos = getMousePos(e);
-                currentPath.push(pos);
-                ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                renderBoard();
-                drawStroke({ points: currentPath, color: penColor, width: 4 });
-            } else if (isDragging && activeTool === 'select' && activeElement) {
-                const boardRect = board.getBoundingClientRect();
-                let newX = e.clientX - boardRect.left - initialPos.x;
-                let newY = e.clientY - boardRect.top - initialPos.y;
-                newX = Math.max(0, Math.min(newX, boardRect.width - activeElement.offsetWidth));
-                newY = Math.max(0, Math.min(newY, boardRect.height - activeElement.offsetHeight));
-                activeElement.style.left = `${newX}px`;
-                activeElement.style.top = `${newY}px`;
-                const targetElement = boardState.find(el => el.id === activeElement.id);
-                if (targetElement) {
-                    targetElement.x = newX;
-                    targetElement.y = newY;
+            if (e.target.tagName.toLowerCase() === 'textarea') {
+                const parentElementDiv = e.target.closest('.joard-element');
+                if (parentElementDiv) {
+                    const elementState = findElement(parentElementDiv.id);
+                    if (elementState?.locked) { e.target.blur(); return; }
+                    if (selectedElementId !== parentElementDiv.id) { selectedElementId = parentElementDiv.id; renderBoard(); }
+                    setTimeout(() => {
+                        const el = document.getElementById(parentElementDiv.id)?.querySelector('textarea');
+                        if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+                    }, 0);
                 }
-            }
-        }
-
-        function handleMouseUp() {
-            if (isDrawing && activeTool === 'pen') {
-                addStroke();
-            } else if (isDragging && activeTool === 'select') {
-                broadcastState();
-            }
-            isDrawing = false;
-            isDragging = false;
-            currentPath = [];
-            if (activeElement) {
-                activeElement.style.zIndex = 10;
-                activeElement = null;
-            }
-        }
-        
-        // --- UI & TOOL MANAGEMENT ---
-        function setActiveTool(tool) {
-            activeTool = tool;
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            if (tool === 'select' || tool === 'pen') {
-                document.getElementById(`tool-${tool}`).classList.add('active');
+                return;
             }
 
-            if (tool === 'pen') {
-                drawingCanvas.style.pointerEvents = 'auto';
-                board.style.pointerEvents = 'none';
-                penOptions.classList.remove('hidden');
-                penOptions.classList.add('flex');
-            } else {
-                drawingCanvas.style.pointerEvents = 'none';
-                board.style.pointerEvents = 'auto';
-                penOptions.classList.add('hidden');
-                penOptions.classList.remove('flex');
+            const targetElementDiv = e.target.closest('.joard-element');
+            if (activeTool === 'select' && !targetElementDiv && !e.target.closest('.context-btn')) {
+                isPanning = true; boardContainer.style.cursor = 'grabbing';
+                const rect = boardContainer.getBoundingClientRect();
+                initialPos = { x: (e.clientX || e.touches[0].clientX) - rect.left, y: (e.clientY || e.touches[0].clientY) - rect.top };
+                initialPan = { ...viewState }; return;
+            }
+
+            const pos = getEventPos(e);
+            const elementState = targetElementDiv ? findElement(targetElementDiv.id) : null;
+
+            if (activeTool === 'pen') { isDrawing = true; currentPath = [pos]; return; }
+            if (activeTool === 'eraser') { isErasing = true; eraseStrokesAt(pos); return; }
+            if (activeTool.startsWith('adding-')) {
+                const typeMap = { 'adding-sticky': 'sticky-note', 'adding-text': 'text-box', 'adding-sticker': 'sticker' };
+                const type = typeMap[activeTool];
+                const data = { x: pos.x, y: pos.y };
+                if (type === 'sticker') { data.color = stickerColor; data.shape = stickerShape; data.x -=15; data.y -=15; }
+                if (type === 'sticky-note') data.color = stickyColor;
+                if (type === 'text-box') data.fontFamily = textFont;
+                const newId = addElement(type, data);
+                if (type === 'text-box' && isHost) {
+                    setActiveTool('select'); selectedElementId = newId; renderBoard();
+                    setTimeout(() => document.getElementById(newId)?.querySelector('textarea').focus(), 0);
+                } else if (type !== 'sticker') {
+                    setActiveTool('select');
+                }
+                return;
+            }
+
+            const targetHandle = e.target.closest('.resize-handle');
+            if (targetHandle && !elementState?.locked) { isResizing = true; selectedElementId = targetHandle.parentElement.id; } 
+            else if (targetElementDiv && !elementState?.locked) { isDragging = true; selectedElementId = targetElementDiv.id; } 
+            else { selectedElementId = null; }
+
+            if (selectedElementId) {
+                initialPos = pos;
+                const currentElementState = findElement(selectedElementId);
+                if (currentElementState) initialElementState = { ...currentElementState };
+            }
+            renderBoard();
+            updateContextualToolbar();
+        }
+        function handleMouseMove(e) {
+            if (e.buttons === 0 && e.touches?.length === 0) { if (isPanning) boardContainer.style.cursor = 'grab'; isDrawing = isDragging = isResizing = isPanning = isErasing = false; return; }
+            const currentPos = getEventPos(e);
+            if (isPanning) {
+                e.preventDefault(); const rect = boardContainer.getBoundingClientRect();
+                const currentScreenPos = { x: (e.clientX || e.touches[0].clientX) - rect.left, y: (e.clientY || e.touches[0].clientY) - rect.top };
+                viewState.panX = initialPan.x + (currentScreenPos.x - initialPos.x);
+                viewState.panY = initialPan.y + (currentScreenPos.y - initialPos.y);
+                applyViewTransform(); return;
+            }
+            if (isErasing) { e.preventDefault(); eraseStrokesAt(currentPos); return; }
+            if (isDrawing) { e.preventDefault(); currentPath.push(currentPos); ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height); renderBoard(); drawStroke({ points: currentPath, color: penColor, width: 4 }); return; }
+            if (isDragging || isResizing) {
+                 e.preventDefault();
+                const dx = currentPos.x - initialPos.x; const dy = currentPos.y - initialPos.y;
+                const liveElement = document.getElementById(selectedElementId);
+                if (!liveElement) return;
+                if (isDragging) { liveElement.style.left = `${initialElementState.x + dx}px`; liveElement.style.top = `${initialElementState.y + dy}px`; } 
+                else if (isResizing) { liveElement.style.width = `${Math.max(50, initialElementState.width + dx)}px`; liveElement.style.height = `${Math.max(20, initialElementState.height + dy)}px`; }
             }
         }
+        function handleMouseUp(e) {
+            if (isDrawing) addStroke();
+            if (isErasing && isHost) broadcastStateFromHost();
 
-        function setPenColor(color) {
-            penColor = color;
-            penOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active'));
-            penOptions.querySelector(`[data-color="${color}"]`).classList.add('active');
+            if (isDragging || isResizing) {
+                const finalPos = getEventPos(e);
+                const dx = finalPos.x - initialPos.x;
+                const dy = finalPos.y - initialPos.y;
+                const finalState = {};
+                const action = isDragging ? 'drag-element' : 'resize-element';
+                if (isDragging) { finalState.x = initialElementState.x + dx; finalState.y = initialElementState.y + dy; } 
+                else { finalState.width = Math.max(50, initialElementState.width + dx); finalState.height = Math.max(20, initialElementState.height + dy); }
+                if (isHost) {
+                    recordHistory();
+                    const element = findElement(selectedElementId);
+                    if (element) Object.assign(element, finalState);
+                    broadcastStateFromHost();
+                } else {
+                    sendActionToServer(action, { id: selectedElementId, ...finalState });
+                }
+                renderBoard(); // Client redraws to snap element back to its original place until host update arrives
+            }
+            if (isPanning) boardContainer.style.cursor = 'grab';
+            isDrawing = false; isDragging = false; isResizing = false;
+            isErasing = false; isPanning = false; currentPath = [];
         }
+        function setActiveTool(tool) { /* ... unchanged ... */ }
+        function updateContextualToolbar() { /* ... unchanged ... */ }
+        function _moveElementForward(elementId) { /* ... unchanged ... */ }
+        function _moveElementBackward(elementId) { /* ... unchanged ... */ }
+        function switchFrame(index) { if (isHost) { recordHistory(); jamState.currentFrameIndex = index; renderBoard(); broadcastStateFromHost(); } else { sendActionToServer('switch-frame', { index }); } }
+        function addFrame() { if (isHost) { recordHistory(); jamState.frames.push([]); jamState.currentFrameIndex = jamState.frames.length - 1; renderBoard(); broadcastStateFromHost(); } else { sendActionToServer('add-frame', {}); } }
+        function nextFrame() { if (jamState.currentFrameIndex < jamState.frames.length - 1) { switchFrame(jamState.currentFrameIndex + 1); } }
+        function prevFrame() { if (jamState.currentFrameIndex > 0) { switchFrame(jamState.currentFrameIndex - 1); } }
 
         // --- EVENT LISTENERS ---
-        nameSubmitBtn.addEventListener('click', () => {
-            const name = nameInput.value.trim();
-            if (name) {
-                userName = name;
-                nameModal.classList.add('hidden');
-                mainApp.classList.remove('hidden');
-                initializeResizeObserver();
-                resizeCanvas();
-                setActiveTool('select');
-                setPenColor('#000000');
-            } else {
-                showToast("Please enter a name to continue.");
-            }
-        });
-
-        startJoinBtn.addEventListener('click', startOrJoinBoard);
-        addStickyBtn.addEventListener('click', () => addElement('sticky-note'));
-        addTextBtn.addEventListener('click', () => addElement('text-box'));
+        window.addEventListener('load', () => { setTimeout(() => { loadingOverlay.classList.add('hidden'); setTimeout(() => { nameModal.classList.remove('hidden'); nameModalContent.classList.add('visible'); }, 100); }, 500); });
+        nameSubmitBtn.addEventListener('click', () => { const name = nameInput.value.trim(); if (name) { userName = name; nameModalContent.classList.remove('visible'); setTimeout(() => { nameModal.classList.add('hidden'); actionModal.classList.remove('hidden'); actionModal.querySelector('.modal-content').classList.add('visible'); }, 300); } else { showToast("Please enter a name to continue."); } });
+        newBoardBtn.addEventListener('click', () => { joinMode = 'create'; boardNameTitle.textContent = 'Create a New Board'; passwordContainer.classList.remove('hidden'); actionModal.querySelector('.modal-content').classList.remove('visible'); setTimeout(() => { actionModal.classList.add('hidden'); boardNameModal.classList.remove('hidden'); boardNameModal.querySelector('.modal-content').classList.add('visible'); }, 300); });
+        joinBoardBtn.addEventListener('click', () => { joinMode = 'join'; boardNameTitle.textContent = 'Join an Existing Board'; passwordContainer.classList.remove('hidden'); actionModal.querySelector('.modal-content').classList.remove('visible'); setTimeout(() => { actionModal.classList.add('hidden'); boardNameModal.classList.remove('hidden'); boardNameModal.querySelector('.modal-content').classList.add('visible'); }, 300); });
+        boardNameBackBtn.addEventListener('click', () => { boardNameModal.querySelector('.modal-content').classList.remove('visible'); setTimeout(() => { boardNameModal.classList.add('hidden'); actionModal.classList.remove('hidden'); actionModal.querySelector('.modal-content').classList.add('visible'); }, 300); });
+        boardNameSubmitBtn.addEventListener('click', startConnection);
+        togglePasswordBtn.addEventListener('click', () => { const isPassword = boardPasswordInput.type === 'password'; boardPasswordInput.type = isPassword ? 'text' : 'password'; togglePasswordBtn.innerHTML = `<i class="fas ${isPassword ? 'fa-eye-slash' : 'fa-eye'}"></i>`; });
+        leaveBoardBtn.addEventListener('click', () => { if (isHost) { leaveModalTitle.textContent = 'End Board for All?'; leaveModalText.textContent = 'This will disconnect everyone from the board.'; leaveConfirmBtn.textContent = 'End Board'; } else { leaveModalTitle.textContent = 'Leave Board?'; leaveModalText.textContent = 'Are you sure you want to leave this board?'; leaveConfirmBtn.textContent = 'Leave'; } leaveModal.classList.remove('hidden'); leaveModal.querySelector('.modal-content').classList.add('visible'); });
+        leaveConfirmBtn.addEventListener('click', () => { if (peer) peer.destroy(); window.location.reload(); });
+        leaveCancelBtn.addEventListener('click', () => { leaveModal.querySelector('.modal-content').classList.remove('visible'); setTimeout(() => leaveModal.classList.add('hidden'), 300); });
+        toolStickyBtn.addEventListener('click', () => setActiveTool('adding-sticky'));
+        toolTextBtn.addEventListener('click', () => setActiveTool('adding-text'));
+        toolStickerBtn.addEventListener('click', () => setActiveTool('adding-sticker'));
         addImageBtn.addEventListener('click', () => imageUploadInput.click());
         toolSelectBtn.addEventListener('click', () => setActiveTool('select'));
         toolPenBtn.addEventListener('click', () => setActiveTool('pen'));
-        penOptions.addEventListener('click', (e) => {
-            if (e.target.matches('.color-btn')) {
-                setPenColor(e.target.dataset.color);
-            }
-        });
-
-        imageUploadInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const dataUrl = event.target.result;
-                    addElement('image', { src: dataUrl });
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
+        toolEraserBtn.addEventListener('click', () => setActiveTool('eraser'));
+        undoBtn.addEventListener('click', undo); redoBtn.addEventListener('click', redo);
+        addFrameBtn.addEventListener('click', addFrame); nextFrameBtn.addEventListener('click', nextFrame); prevFrameBtn.addEventListener('click', prevFrame);
+        contextOptionsContainer.addEventListener('mousedown', e => e.stopPropagation());
+        contextOptionsContainer.addEventListener('touchstart', e => e.stopPropagation());
+        penOptions.addEventListener('click', (e) => { if (e.target.matches('.color-btn')) { penColor = e.target.dataset.color; penOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); } });
+        stickyOptions.addEventListener('click', (e) => { if (e.target.matches('.color-btn')) { stickyColor = e.target.dataset.color; stickyOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); if (selectedElementId && findElement(selectedElementId)?.type === 'sticky-note') { if(isHost){recordHistory(); findElement(selectedElementId).color = stickyColor; renderBoard(); broadcastStateFromHost();} else {sendActionToServer('update-element-color', {id: selectedElementId, color: stickyColor});} } } });
+        textOptions.addEventListener('click', (e) => { const fontBtn = e.target.closest('.font-btn'); if (fontBtn) { textFont = fontBtn.dataset.font; textOptions.querySelectorAll('.font-btn').forEach(btn => btn.classList.remove('active')); fontBtn.classList.add('active'); if (selectedElementId && findElement(selectedElementId)?.type === 'text-box') { if(isHost){recordHistory(); findElement(selectedElementId).fontFamily = textFont; renderBoard(); broadcastStateFromHost();} else {sendActionToServer('update-element-font', {id: selectedElementId, font: textFont});} } } });
+        stickerOptions.addEventListener('click', (e) => { const colorBtn = e.target.closest('.color-btn'); const shapeBtn = e.target.closest('.shape-btn'); if (colorBtn) { stickerColor = colorBtn.dataset.color; stickerOptions.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('active')); colorBtn.classList.add('active'); } if (shapeBtn) { stickerShape = shapeBtn.dataset.shape; stickerOptions.querySelectorAll('.shape-btn').forEach(btn => btn.classList.remove('active')); shapeBtn.classList.add('active'); } });
+        imageUploadInput.addEventListener('change', (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (event) => { const dataUrl = event.target.result; if (dataUrl.length > 500000) { showToast("Image is too large (max 500KB).", 5000); return; } addElement('image', { src: dataUrl, x: 150, y: 150 }); }; reader.readAsDataURL(file); } e.target.value = ''; });
         boardContainer.addEventListener('mousedown', handleMouseDown);
         boardContainer.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
+        boardContainer.addEventListener('touchstart', handleMouseDown, { passive: false });
+        boardContainer.addEventListener('touchmove', handleMouseMove, { passive: false });
+        window.addEventListener('touchend', handleMouseUp);
         window.addEventListener('resize', resizeCanvas);
-
         viewUsersBtn.addEventListener('click', () => usersModal.classList.remove('hidden'));
         closeUsersModalBtn.addEventListener('click', () => usersModal.classList.add('hidden'));
-        usersModal.addEventListener('click', e => {
-            if (e.target === usersModal) usersModal.classList.add('hidden');
-});
+        usersModal.addEventListener('click', e => { if (e.target === usersModal) usersModal.classList.add('hidden'); });
+        presentBtn.addEventListener('click', () => { document.body.classList.toggle('presentation-mode'); setTimeout(resizeCanvas, 100); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('presentation-mode')) { document.body.classList.remove('presentation-mode'); setTimeout(resizeCanvas, 100); } });
+        exportBtn.addEventListener('click', () => { const p = selectedElementId; selectedElementId = null; renderBoard(); html2canvas(boardContainer, { backgroundColor: '#eef2f9', onclone: (d) => { d.getElementById('board').style.transform = board.style.transform; d.getElementById('drawing-canvas').style.transform = drawingCanvas.style.transform; } }).then(c => { const l = document.createElement('a'); l.download = 'bam-joard.png'; l.href = c.toDataURL(); l.click(); selectedElementId = p; renderBoard(); }); });
 
+        // Helper functions used across the script that are unchanged
+        drawStroke = (strokeData) => { ctx.beginPath(); ctx.strokeStyle = strokeData.color; ctx.lineWidth = strokeData.width; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; if (strokeData.points.length > 0) { ctx.moveTo(strokeData.points[0].x, strokeData.points[0].y); for (let i = 1; i < strokeData.points.length; i++) { ctx.lineTo(strokeData.points[i].x, strokeData.points[i].y); } } ctx.stroke(); };
+        resizeCanvas = () => { if (!mainApp.classList.contains('hidden')) { const rect = boardContainer.getBoundingClientRect(); drawingCanvas.width = rect.width; drawingCanvas.height = rect.height; renderBoard(); } };
+        getEventPos = (evt) => { const rect = boardContainer.getBoundingClientRect(); const clientX = evt.clientX || evt.touches[0].clientX; const clientY = evt.clientY || evt.touches[0].clientY; return { x: clientX - rect.left - viewState.panX, y: clientY - rect.top - viewState.panY }; };
+        eraseStrokesAt = (pos) => { const r = 15; const f = jamState.frames[jamState.currentFrameIndex]; const d = new Set(); for (const e of f) { if (e.type === 'stroke') for (const p of e.points) if (Math.hypot(p.x - pos.x, p.y - pos.y) < r) { d.add(e.id); break; } } if (d.size > 0) { if (isHost) { recordHistory(); jamState.frames[jamState.currentFrameIndex] = f.filter(e => !d.has(e.id)); renderBoard(); broadcastStateFromHost(); } else { d.forEach(id => sendActionToServer('delete-element', {id})); } } };
+        setActiveTool = (tool) => { activeTool = tool; document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active')); const m = { 'pen': 'tool-pen', 'select': 'tool-select', 'eraser': 'tool-eraser', 'adding-sticky': 'tool-sticky', 'adding-text': 'tool-text', 'adding-sticker': 'tool-sticker' }; document.getElementById(m[tool])?.classList.add('active'); const c = { pen: 'crosshair', eraser: 'cell', 'adding-text': 'text', 'adding-sticky': 'copy', 'adding-sticker': 'copy', select: 'default' }; board.style.cursor = c[tool] || 'default'; boardContainer.style.cursor = (tool === 'select') ? 'grab' : 'default'; drawingCanvas.style.pointerEvents = (tool === 'pen' || tool === 'eraser') ? 'auto' : 'none'; updateContextualToolbar(); };
+        updateContextualToolbar = () => { const o = [penOptions, stickyOptions, textOptions, stickerOptions]; o.forEach(opt => opt.classList.add('hidden')); contextOptionsContainer.classList.add('hidden'); const tm = { pen: penOptions, 'adding-sticky': stickyOptions, 'adding-text': textOptions, 'adding-sticker': stickerOptions }; const e = findElement(selectedElementId); const sm = { 'sticky-note': stickyOptions, 'text-box': textOptions }; const ts = tm[activeTool] || (e ? sm[e.type] : null); if (ts) { ts.classList.remove('hidden'); contextOptionsContainer.classList.remove('hidden'); } };
+        _moveElementForward = (id) => { const f = jamState.frames[jamState.currentFrameIndex]; const i = f.findIndex(el => el.id === id); if (i > -1 && i < f.length - 1) { [f[i], f[i + 1]] = [f[i + 1], f[i]]; } };
+        _moveElementBackward = (id) => { const f = jamState.frames[jamState.currentFrameIndex]; const i = f.findIndex(el => el.id === id); if (i > 0) { [f[i], f[i - 1]] = [f[i - 1], f[i]]; } };
+        updateFrameIndicator = () => { frameBar.classList.remove('hidden'); frameIndicator.textContent = `${jamState.currentFrameIndex + 1} / ${jamState.frames.length}`; };
     </script>
 </body>
 </html>
