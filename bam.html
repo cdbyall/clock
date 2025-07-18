@@ -273,7 +273,10 @@
                     <i class="fas fa-eye"></i>
                 </button>
             </div>
-            <button id="board-name-submit-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all">Go</button>
+            <div class="flex items-center gap-4">
+                <button id="board-name-back-btn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-md transition-all">Back</button>
+                <button id="board-name-submit-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all">Go</button>
+            </div>
         </div>
     </div>
 
@@ -365,7 +368,6 @@
                     <!-- Shapes -->
                     <button class="shape-btn p-2 rounded-md" data-shape="circle"><i class="fas fa-circle"></i></button>
                     <button class="shape-btn p-2 rounded-md" data-shape="star"><i class="fas fa-star"></i></button>
-                    <button class="shape-btn p-2 rounded-md" data-shape="heart"><i class="fas fa-heart"></i></button>
                     <button class="shape-btn p-2 rounded-md" data-shape="triangle"><i class="fas fa-caret-up fa-lg"></i></button>
                     <div class="w-px h-6 bg-gray-200 mx-1"></div>
                     <!-- Colors -->
@@ -411,6 +413,7 @@
         const boardPasswordInput = document.getElementById('board-password-input');
         const togglePasswordBtn = document.getElementById('toggle-password-btn');
         const boardNameSubmitBtn = document.getElementById('board-name-submit-btn');
+        const boardNameBackBtn = document.getElementById('board-name-back-btn');
         const leaveModal = document.getElementById('leave-modal');
         const leaveModalTitle = document.getElementById('leave-modal-title');
         const leaveModalText = document.getElementById('leave-modal-text');
@@ -749,7 +752,6 @@
         const stickerShapes = {
             circle: `<circle cx="50" cy="50" r="50"/>`,
             star: `<polygon points="50,0 61.8,38.2 100,38.2 69.1,61.8 80.9,100 50,76.4 19.1,100 30.9,61.8 0,38.2 38.2,38.2"/>`,
-            heart: `<path d="M85.7,17.1C73.1,4.5,52.9,4.5,40.3,17.1L50,26.8L59.7,17.1C72.3,4.5,92.5,4.5,105.1,17.1 C117.7,29.7,117.7,50,105.1,62.6L50,117.7L-5.1,62.6C-17.7,50,-17.7,29.7,-5.1,17.1 C7.5,4.5,27.7,4.5,40.3,17.1L50,26.8L59.7,17.1z" transform="translate(5, -10) scale(0.9)"/>`,
             triangle: `<polygon points="50,0 100,100 0,100"/>`
         };
 
@@ -1183,6 +1185,15 @@
                 actionModal.classList.add('hidden');
                 boardNameModal.classList.remove('hidden');
                 boardNameModal.querySelector('.modal-content').classList.add('visible');
+            }, 300);
+        });
+        
+        boardNameBackBtn.addEventListener('click', () => {
+            boardNameModal.querySelector('.modal-content').classList.remove('visible');
+            setTimeout(() => {
+                boardNameModal.classList.add('hidden');
+                actionModal.classList.remove('hidden');
+                actionModal.querySelector('.modal-content').classList.add('visible');
             }, 300);
         });
 
