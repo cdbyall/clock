@@ -249,6 +249,7 @@
 
     <div id="notification-toast" class="card py-3 px-5"> <p id="notification-message"></p> </div>
 
+    <!-- Achievement Notification -->
     <div id="achievement-toast">
         <div id="achievement-icon">🏆</div>
         <div id="achievement-details">
@@ -256,9 +257,7 @@
             <p id="achievement-desc"></p>
         </div>
     </div>
-    <audio id="achievement-chime" src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU3LjU2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAZAEFkb2JlIFBybyAxLjUgMjAwMy4wNS4yNwAAAAAAAAAAAAAAAAD/7wMASwAAAAwAAAADhQcBAIABAHAAAPigfAAAAAD6iKQCgIBAgIAAABHAAAHg//uAxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sNwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sRwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEwAAAFlbWdAAAAAAAEAAQAAAAYAAA3+AAAAAAA="></audio>
-
-
+    
     <script>
         window.onload = function() {
             // --- DOM ELEMENTS ---
@@ -326,7 +325,6 @@
             const achievementToast = document.getElementById('achievement-toast');
             const achievementTitle = document.getElementById('achievement-title');
             const achievementDesc = document.getElementById('achievement-desc');
-            const achievementChime = document.getElementById('achievement-chime');
 
             // --- STATE MANAGEMENT ---
             let currentDate = new Date();
@@ -342,7 +340,59 @@
             let unlockedAchievements = {};
             let achievementQueue = [];
             let isDisplayingAchievement = false;
+            let audioContext;
+
+            // --- AUDIO INITIALIZATION & PLAYBACK ---
+            function initAudio() {
+                try {
+                    // Create AudioContext on page load
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    // It will be in a "suspended" state until the user interacts with the page.
+                    // A single event listener on the body will resume it.
+                    const unlockAudio = () => {
+                        if (audioContext.state === 'suspended') {
+                            audioContext.resume();
+                        }
+                        // Remove the event listener after it has run once.
+                        document.body.removeEventListener('click', unlockAudio);
+                        document.body.removeEventListener('touchend', unlockAudio);
+                    };
+                    document.body.addEventListener('click', unlockAudio);
+                    document.body.addEventListener('touchend', unlockAudio);
+                } catch (e) {
+                    console.error("Web Audio API is not supported in this browser.");
+                }
+            }
             
+            function playChime() {
+                // If the audio context is not available or not running, do nothing.
+                if (!audioContext || audioContext.state !== 'running') {
+                    console.warn("AudioContext not running. Sound will not play.");
+                    return;
+                }
+                
+                // Create an oscillator (to generate a tone)
+                const oscillator = audioContext.createOscillator();
+                // Create a gain node (to control the volume)
+                const gainNode = audioContext.createGain();
+
+                // Configure the oscillator
+                oscillator.type = 'sine'; // A smooth, calming sound wave
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A pleasant pitch (A5)
+                
+                // Configure the gain (volume) to create a gentle fade-out effect
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // Start at a soft volume
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.5); // Fade out over 0.5 seconds
+
+                // Connect the nodes: oscillator -> gain -> destination (speakers)
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // Start and stop the sound
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5); // Play for 0.5 seconds
+            }
+
             // --- HELPER FUNCTIONS ---
             function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
             function getExactTime(date) { return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; }
@@ -711,8 +761,7 @@
                 achievementToast.classList.add('show');
                 
                 if (playSound) {
-                    achievementChime.currentTime = 0;
-                    achievementChime.play().catch(e => console.error("Audio playback failed:", e));
+                    playChime();
                 }
                 
                 setTimeout(() => {
@@ -893,10 +942,14 @@
 
             // --- INITIALIZATION ---
             function init() {
-                loadSettings(); loadData();
+                initAudio();
+                loadSettings(); 
+                loadData();
                 populateThemeSelector();
-                themeSelect.value = settings.theme; applyTheme(settings.theme);
-                backgroundSelect.value = settings.background; applyBackground(settings.background);
+                themeSelect.value = settings.theme; 
+                applyTheme(settings.theme);
+                backgroundSelect.value = settings.background; 
+                applyBackground(settings.background);
                 payPeriodSelect.value = settings.payPeriod;
                 selectedDate = getDateString(new Date());
                 updateAllUI();
