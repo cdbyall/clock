@@ -345,15 +345,11 @@
             // --- AUDIO INITIALIZATION & PLAYBACK ---
             function initAudio() {
                 try {
-                    // Create AudioContext on page load
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    // It will be in a "suspended" state until the user interacts with the page.
-                    // A single event listener on the body will resume it.
                     const unlockAudio = () => {
                         if (audioContext.state === 'suspended') {
                             audioContext.resume();
                         }
-                        // Remove the event listener after it has run once.
                         document.body.removeEventListener('click', unlockAudio);
                         document.body.removeEventListener('touchend', unlockAudio);
                     };
@@ -364,34 +360,45 @@
                 }
             }
             
-            function playChime() {
-                // If the audio context is not available or not running, do nothing.
-                if (!audioContext || audioContext.state !== 'running') {
-                    console.warn("AudioContext not running. Sound will not play.");
-                    return;
-                }
+            function playTone(frequency, startTime, duration, volume = 0.2) {
+                if (!audioContext || audioContext.state !== 'running') return;
                 
-                // Create an oscillator (to generate a tone)
                 const oscillator = audioContext.createOscillator();
-                // Create a gain node (to control the volume)
                 const gainNode = audioContext.createGain();
 
-                // Configure the oscillator
-                oscillator.type = 'sine'; // A smooth, calming sound wave
-                oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A pleasant pitch (A5)
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime + startTime);
                 
-                // Configure the gain (volume) to create a gentle fade-out effect
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime); // Start at a soft volume
-                gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.5); // Fade out over 0.5 seconds
+                gainNode.gain.setValueAtTime(volume, audioContext.currentTime + startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + startTime + duration);
 
-                // Connect the nodes: oscillator -> gain -> destination (speakers)
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
 
-                // Start and stop the sound
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5); // Play for 0.5 seconds
+                oscillator.start(audioContext.currentTime + startTime);
+                oscillator.stop(audioContext.currentTime + startTime + duration);
             }
+
+            function playAchievementSound() {
+                playTone(880, 0, 0.5, 0.3);
+            }
+            
+            function playClockInSound() {
+                playTone(523.25, 0, 0.1); // C5
+                playTone(659.25, 0.1, 0.15); // E5
+            }
+
+            function playClockOutSound() {
+                playTone(659.25, 0, 0.1); // E5
+                playTone(523.25, 0.1, 0.15); // C5
+            }
+
+            function playTurnInSound() {
+                playTone(523.25, 0, 0.1);    // C5
+                playTone(659.25, 0.1, 0.1);  // E5
+                playTone(783.99, 0.2, 0.15); // G5
+            }
+
 
             // --- HELPER FUNCTIONS ---
             function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
@@ -761,7 +768,7 @@
                 achievementToast.classList.add('show');
                 
                 if (playSound) {
-                    playChime();
+                    playAchievementSound();
                 }
                 
                 setTimeout(() => {
@@ -809,7 +816,11 @@
             payPeriodSelect.addEventListener('change', e => { settings.payPeriod = parseInt(e.target.value, 10); saveSettings(); updateSummaries(); });
             clearDataBtn.addEventListener('click', clearAllData);
             hourTypeButtons.forEach(b => { b.addEventListener('click', () => { modalHourType = b.dataset.type; updateHourTypeSelectionUI(); }); });
-            turnInHoursBtn.addEventListener('click', generateAndShowTimesheet);
+            
+            turnInHoursBtn.addEventListener('click', () => {
+                generateAndShowTimesheet();
+                playTurnInSound();
+            });
             
             copyTimesheetBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(timesheetOutput.value)
@@ -839,6 +850,7 @@
                 selectedDate = todayStr;
                 saveData(); updateAllUI();
                 showNotification(`Clocked in: ${formatTo12Hour(exactTime)}`);
+                playClockInSound();
                 checkAllAchievements();
                 openSidePanel();
             });
@@ -867,6 +879,7 @@
                     saveData(); updateAllUI();
                     clockOutTypeModal.classList.remove('active');
                     showNotification(`Clocked out: ${formatTo12Hour(exactTime)}`);
+                    playClockOutSound();
                     checkAllAchievements({ lastSessionHours: lastSessionHours, date: todayStr });
                     openSidePanel();
                 }
