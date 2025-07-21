@@ -164,7 +164,7 @@
                     <option value="none">None</option>
                     <option value="gradient">Animated Gradient</option>
                 </select></div>
-                <div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14">Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div>
+                <div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14" selected>Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div>
                 <button id="clear-data-btn" class="btn btn-danger w-full py-2">Clear All Data</button>
             </div>
         </div>
@@ -487,18 +487,22 @@
             }
             
             function generateAndShowTimesheet() {
-                // Calculate the date range: 14 days ending on the most recent Friday.
+                // A known pay period started on Sat, July 5, 2025. All 2-week periods are relative to this.
+                const refStartDate = new Date('2025-07-05T00:00:00');
                 const today = new Date();
-                const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-                const offsetToLastFriday = (dayOfWeek + 2) % 7;
-                
-                const periodEndDate = new Date(today);
-                periodEndDate.setDate(today.getDate() - offsetToLastFriday);
-                periodEndDate.setHours(23, 59, 59, 999);
+                const periodDuration = 14; // Always 2 weeks
+                const msPerDay = 1000 * 60 * 60 * 24;
 
-                const periodStartDate = new Date(periodEndDate);
-                periodStartDate.setDate(periodEndDate.getDate() - 13);
-                periodStartDate.setHours(0, 0, 0, 0);
+                // Find which 14-day period we are currently in, relative to the reference start date.
+                const daysSinceRef = Math.floor((today - refStartDate) / msPerDay);
+                const periodNum = Math.floor(daysSinceRef / periodDuration);
+                
+                // Calculate the start and end dates of the current pay period.
+                const periodStartDate = new Date(refStartDate);
+                periodStartDate.setDate(refStartDate.getDate() + (periodNum * periodDuration));
+                
+                const periodEndDate = new Date(periodStartDate);
+                periodEndDate.setDate(periodStartDate.getDate() + (periodDuration - 1));
 
                 let timesheetLines = [];
                 let acapTotal = 0;
@@ -560,7 +564,7 @@
 
                 timesheetOutput.value = timesheetLines.join('\n') + summaryLines.join('\n');
                 timesheetModal.classList.add('active');
-                showNotification("Timesheet generated for the preceding two weeks.");
+                showNotification("Timesheet generated for the current 2-week period.");
             }
             
             function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
