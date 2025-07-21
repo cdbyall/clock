@@ -47,6 +47,10 @@
         #background-animation-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; overflow: hidden; }
         .animated-gradient { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
         @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .orb { position: absolute; bottom: -200px; background-color: rgba(134, 168, 231, 0.2); border-radius: 50%; animation: rise 20s infinite linear; }
+        @keyframes rise { 0% { transform: translateY(0); } 100% { transform: translateY(-120vh); } }
+        .star { position: absolute; background-color: white; border-radius: 50%; animation: twinkle 5s infinite; }
+        @keyframes twinkle { 0%, 100% { opacity: 0; } 50% { opacity: 0.8; } }
 
         /* --- Achievement Notification --- */
         #achievement-toast {
@@ -277,6 +281,8 @@
                 <div><label for="background-select" class="block text-sm font-medium mb-1">Animated Background</label><select id="background-select" class="input-field w-full">
                     <option value="none">None</option>
                     <option value="gradient">Animated Gradient</option>
+                    <option value="orbs">Floating Orbs</option>
+                    <option value="stars">Starry Night</option>
                 </select></div>
                 <div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14" selected>Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div>
                 <button id="clear-data-btn" class="btn btn-danger w-full py-2">Clear All Data</button>
@@ -423,7 +429,7 @@
             let selectedDate = null;
             let editingSessionIndex = -1;
             let timeData = {};
-            let settings = { theme: 'Sakura', background: 'none', payPeriod: 14 };
+            let settings = { theme: 'Parchment', background: 'none', payPeriod: 14 };
             let modalHourType = 'CORE';
             let onConfirmCallback = null;
             let notificationTimeout;
@@ -530,13 +536,53 @@
 
             // --- THEME & BACKGROUND MANAGEMENT ---
             const themes = {
-                default: { '--bg-primary': '#F3EAD3', '--bg-secondary': '#FFFFFF', '--text-primary': '#4A4A4A', '--text-secondary': '#7A7A7A', '--accent-primary': '#86A8E7', '--accent-secondary': '#91EAE4', '--border-default': '#D9D9D9' },
-                'Oceanic': { '--bg-primary': '#0B2027', '--bg-secondary': '#12343B', '--text-primary': '#E0FBFC', '--text-secondary': '#96C5D9', '--accent-primary': '#3EF7B2', '--accent-secondary': '#00B4D8', '--border-default': 'rgba(150, 197, 217, 0.4)' },
-                'Sakura': { '--bg-primary': '#F9F1F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#5B4242', '--text-secondary': '#8D6E6E', '--accent-primary': '#E6A4B4', '--accent-secondary': '#FFB7C5', '--border-default': '#E6DEDE' },
+                Parchment: { '--bg-primary': '#F3EAD3', '--bg-secondary': '#FFFFFF', '--text-primary': '#4A4A4A', '--text-secondary': '#7A7A7A', '--accent-primary': '#86A8E7', '--accent-secondary': '#91EAE4', '--border-default': '#D9D9D9' },
+                Oceanic: { '--bg-primary': '#0B2027', '--bg-secondary': '#12343B', '--text-primary': '#E0FBFC', '--text-secondary': '#96C5D9', '--accent-primary': '#3EF7B2', '--accent-secondary': '#00B4D8', '--border-default': 'rgba(150, 197, 217, 0.4)' },
+                Sakura: { '--bg-primary': '#F9F1F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#5B4242', '--text-secondary': '#8D6E6E', '--accent-primary': '#E6A4B4', '--accent-secondary': '#FFB7C5', '--border-default': '#E6DEDE' },
+                Twilight: { '--bg-primary': '#232526', '--bg-secondary': '#414345', '--text-primary': '#E0E0E0', '--text-secondary': '#BDBDBD', '--accent-primary': '#8E44AD', '--accent-secondary': '#9B59B6', '--border-default': '#616161' },
+                'Minty Fresh': { '--bg-primary': '#E0F2F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#004D40', '--text-secondary': '#00796B', '--accent-primary': '#4DB6AC', '--accent-secondary': '#80CBC4', '--border-default': '#B2DFDB' },
             };
             function applyTheme(themeName) { const t = themes[themeName]; if (!t) return; Object.keys(t).forEach(k => document.documentElement.style.setProperty(k, t[k])); settings.theme = themeName; saveSettings(); }
             function populateThemeSelector() { Object.keys(themes).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; themeSelect.appendChild(o); }); }
-            function applyBackground(name) { backgroundContainer.innerHTML = ''; document.body.classList.remove('animated-gradient'); if (name === 'gradient') document.body.classList.add('animated-gradient'); settings.background = name; saveSettings(); }
+            
+            function applyBackground(name) {
+                backgroundContainer.innerHTML = ''; // Clear previous background
+                document.body.classList.remove('animated-gradient');
+                backgroundContainer.style.backgroundColor = 'transparent'; // Reset container background
+
+                if (name === 'gradient') {
+                    document.body.classList.add('animated-gradient');
+                } else if (name === 'orbs') {
+                    for (let i = 0; i < 20; i++) {
+                        const orb = document.createElement('div');
+                        orb.className = 'orb';
+                        const size = Math.random() * 150 + 50;
+                        orb.style.width = `${size}px`;
+                        orb.style.height = `${size}px`;
+                        orb.style.left = `${Math.random() * 100}vw`;
+                        orb.style.animationDuration = `${Math.random() * 20 + 15}s`;
+                        orb.style.animationDelay = `${Math.random() * 10}s`;
+                        backgroundContainer.appendChild(orb);
+                    }
+                } else if (name === 'stars') {
+                    backgroundContainer.style.backgroundColor = '#0B2027'; // Set container background to dark blue
+                    for (let i = 0; i < 100; i++) {
+                        const star = document.createElement('div');
+                        star.className = 'star';
+                        const size = Math.random() * 2 + 1;
+                        star.style.width = `${size}px`;
+                        star.style.height = `${size}px`;
+                        star.style.top = `${Math.random() * 100}%`;
+                        star.style.left = `${Math.random() * 100}%`;
+                        star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+                        star.style.animationDelay = `${Math.random() * 5}s`;
+                        backgroundContainer.appendChild(star);
+                    }
+                }
+
+                settings.background = name;
+                saveSettings();
+            }
 
             // --- SIDE PANEL & MODAL ---
             function openSidePanel() { sidePanelContainer.classList.add('active'); }
