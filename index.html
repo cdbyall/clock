@@ -304,10 +304,6 @@
             let weeklyChartInstance = null;
             let typeChartInstance = null;
             
-            // --- MESSAGES ---
-            const clockInMessages = ["🌱 Clocked in! Have a peaceful session.", "Begin your moment of focus."];
-            const clockOutMessages = ["✨ Clocked out! Time to relax.", "Your work is complete. Rest well."];
-
             // --- HELPER FUNCTIONS ---
             function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
             function getRoundedTime(date) { const m = date.getHours() * 60 + date.getMinutes(); const r = Math.round(m / 15) * 15; let h = Math.floor(r / 60); if (h >= 24) h = 0; return `${String(h).padStart(2, '0')}:${String(r % 60).padStart(2, '0')}`; }
@@ -373,9 +369,11 @@
                 additionalHoursDisplayArea.innerHTML = '';
                 
                 const hasHours = calculateHours(dateStr) > 0;
-                noHoursMessage.classList.toggle('hidden', hasHours);
+                noHoursMessage.classList.toggle('hidden', !hasHours);
                 sessionsDisplayArea.classList.toggle('hidden', !hasHours);
                 additionalHoursDisplayArea.classList.toggle('hidden', !hasHours);
+                addSessionBtn.classList.toggle('hidden', !dateStr);
+
 
                 if (hasHours) {
                     entry.sessions.forEach((session, index) => {
@@ -503,30 +501,44 @@
             turnInHoursBtn.addEventListener('click', () => { /* Generate timesheet logic here */ });
             
             clockInBtn.addEventListener('click', () => {
-                const now = new Date(); const todayStr = getDateString(now);
+                const now = new Date(); 
+                const todayStr = getDateString(now);
                 if (!timeData[todayStr]) timeData[todayStr] = { sessions: [], additional: 0 };
-                if (timeData[todayStr].sessions.find(s => s.in && !s.out)) { showNotification('You are already clocked in.'); return; }
-                timeData[todayStr].sessions.push({ in: getRoundedTime(now) });
-                selectedDate = todayStr; saveData(); updateAllUI();
-                showNotification(clockInMessages[Math.floor(Math.random() * clockInMessages.length)]);
+                if (timeData[todayStr].sessions.find(s => s.in && !s.out)) {
+                    showNotification('You are already clocked in.');
+                    return;
+                }
+                const roundedTime = getRoundedTime(now);
+                timeData[todayStr].sessions.push({ in: roundedTime });
+                selectedDate = todayStr;
+                saveData();
+                updateAllUI();
+                showNotification(`Clocked in: ${roundedTime}`);
                 openSidePanel();
             });
 
             clockOutBtn.addEventListener('click', () => {
                 const todayStr = getDateString(new Date());
-                if (!timeData[todayStr]?.sessions.find(s => s.in && !s.out)) { showNotification('You are not clocked in.'); return; }
+                if (!timeData[todayStr]?.sessions.find(s => s.in && !s.out)) {
+                    showNotification('You are not clocked in.');
+                    return;
+                }
                 clockOutTypeModal.classList.add('active');
             });
             
             function handleClockOutWithType(type) {
-                const now = new Date(); const todayStr = getDateString(now);
+                const now = new Date();
+                const todayStr = getDateString(now);
                 const openSessionIdx = timeData[todayStr].sessions.findIndex(s => s.in && !s.out);
                 if (openSessionIdx > -1) {
-                    timeData[todayStr].sessions[openSessionIdx].out = getRoundedTime(now);
+                    const roundedTime = getRoundedTime(now);
+                    timeData[todayStr].sessions[openSessionIdx].out = roundedTime;
                     timeData[todayStr].sessions[openSessionIdx].type = type;
-                    selectedDate = todayStr; saveData(); updateAllUI();
+                    selectedDate = todayStr;
+                    saveData();
+                    updateAllUI();
                     clockOutTypeModal.classList.remove('active');
-                    showNotification(clockOutMessages[Math.floor(Math.random() * clockOutMessages.length)]);
+                    showNotification(`Clocked out: ${roundedTime}`);
                     openSidePanel();
                 }
             }
