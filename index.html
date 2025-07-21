@@ -34,40 +34,18 @@
         .modal-content { transform: scale(0.7); opacity: 0; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-out; }
         .modal-backdrop.active .modal-content { transform: scale(1); opacity: 1; }
 
+        /* --- Side Panel --- */
+        #side-panel-container { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; pointer-events: none; }
+        #side-panel-backdrop { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.3s ease-in-out; }
+        #side-panel-content { position: absolute; top: 0; right: 0; height: 100%; width: 90%; max-width: 400px; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+        #side-panel-container.active { pointer-events: auto; }
+        #side-panel-container.active #side-panel-backdrop { opacity: 1; }
+        #side-panel-container.active #side-panel-content { transform: translateX(0); }
+
         /* --- Animated Backgrounds --- */
         #background-animation-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; overflow: hidden; }
         .animated-gradient { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
         @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-        
-        .particle { position: absolute; border-radius: 50%; background: var(--accent-primary); opacity: 0.6; animation: float 25s infinite ease-in-out; }
-        @keyframes float { 0% { transform: translateY(0) translateX(0); opacity: 0.6; } 50% { transform: translateY(-100vh) translateX(20vw); opacity: 0.8; } 100% { transform: translateY(0) translateX(0); opacity: 0.6; } }
-
-        .star { position: absolute; background-color: white; border-radius: 50%; animation: twinkle 5s infinite ease-in-out; }
-        @keyframes twinkle { 0%, 100% { opacity: 0.5; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
-
-        .rain-drop { position: absolute; bottom: 100%; width: 1px; height: 50px; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.3)); animation: fall linear infinite; }
-        @keyframes fall { to { transform: translateY(110vh); } }
-
-        .pulse-circle { position: absolute; border-radius: 50%; border: 2px solid var(--accent-secondary); animation: pulse 4s infinite cubic-bezier(0.2, 0.8, 0.2, 1); }
-        @keyframes pulse { 0% { transform: scale(0.1); opacity: 0; } 50% { opacity: 0.7; } 100% { transform: scale(1.2); opacity: 0; } }
-
-        .aurora-line { position: absolute; width: 200%; height: 200px; opacity: 0.15; border-radius: 50%; filter: blur(40px); }
-        .aurora-line:nth-child(1) { background: var(--accent-primary); animation: aurora 12s infinite linear; }
-        .aurora-line:nth-child(2) { background: var(--accent-secondary); animation: aurora 15s infinite linear reverse; }
-        @keyframes aurora { 0% { transform: translateX(-50%) translateY(-50%) rotate(0deg); } 100% { transform: translateX(-50%) translateY(-50%) rotate(360deg); } }
-
-        .petal { position: absolute; background-color: var(--accent-primary); opacity: 0.7; border-radius: 5% 40%; animation: drift linear infinite; }
-        @keyframes drift { 0% { transform: translateY(-10vh) translateX(0) rotate(0deg); } 100% { transform: translateY(110vh) translateX(15vw) rotate(720deg); } }
-
-        .bubble { position: absolute; bottom: -50px; border-radius: 50%; border: 1px solid var(--accent-secondary); animation: rise 10s infinite ease-in; }
-        @keyframes rise { 0% { transform: translateY(0) scale(1); opacity: 0.8; } 99% { transform: translateY(-110vh) scale(1.5); opacity: 0; } 100% { transform: translateY(-110vh) scale(0); opacity: 0; } }
-
-        .fog-layer { position: absolute; width: 200vw; height: 200vh; background: radial-gradient(circle, var(--accent-primary) 0%, transparent 70%); opacity: 0.05; animation: fog-drift 60s infinite linear; }
-        .fog-layer.two { animation-delay: -30s; animation-direction: reverse; }
-        @keyframes fog-drift { from { transform: rotate(0deg) translateX(50vw) rotate(0deg); } to { transform: rotate(360deg) translateX(50vw) rotate(-360deg); } }
-        
-        .shape { position: absolute; border-style: solid; animation: shape-float 30s infinite ease-in-out; }
-        @keyframes shape-float { 0% { transform: translateY(110vh) rotate(0deg); opacity: 0; } 10% { opacity: 0.4; } 90% { opacity: 0.4; } 100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; } }
     </style>
 </head>
 <body class="antialiased">
@@ -95,63 +73,69 @@
                 </button>
             </div>
 
-            <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <div class="lg:col-span-2 space-y-8">
-                    <div id="calendar-card" class="card p-6">
-                        <div class="flex justify-between items-center mb-4">
-                            <button id="prev-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&lt;</button>
-                            <h2 id="month-year-header" class="text-xl font-bold"></h2>
-                            <button id="next-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&gt;</button>
-                        </div>
-                        <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center"></div>
+            <main class="space-y-8">
+                <div id="calendar-card" class="card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="prev-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&lt;</button>
+                        <h2 id="month-year-header" class="text-xl font-bold"></h2>
+                        <button id="next-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&gt;</button>
                     </div>
-
-                    <div class="card p-6">
-                        <h3 class="text-lg font-semibold mb-4">Summary</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                            <div>
-                                <p class="text-sm text-secondary">Today</p>
-                                <p id="summary-today" class="text-2xl font-bold">0.00h</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-secondary">Pay Period</p>
-                                <p id="summary-pay-period" class="text-2xl font-bold">0.00h</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-secondary">Total</p>
-                                <p id="summary-total" class="text-2xl font-bold">0.00h</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex justify-center gap-4">
-                         <button id="turn-in-hours-btn" class="btn btn-primary font-bold py-3 px-8 text-lg">Turn In Hours</button>
-                         <button id="view-stats-btn" class="btn btn-secondary font-bold py-3 px-8 text-lg">View Stats</button>
-                    </div>
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center"></div>
                 </div>
 
-                <div class="card p-6 h-fit">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="text-lg font-semibold">Selected Day</h3>
-                        <button id="add-session-btn" title="Add New Session" class="p-2 rounded-full hover:bg-black/10 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        </button>
-                    </div>
-                    <p id="display-selected-date" class="text-sm text-secondary mb-6">Select a date</p>
-                    <div id="sessions-display-area" class="space-y-4 mb-4">
+                <div class="card p-6">
+                    <h3 class="text-lg font-semibold mb-4">Summary</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p class="text-sm text-secondary">Today</p>
+                            <p id="summary-today" class="text-2xl font-bold">0.00h</p>
                         </div>
-                    <div id="additional-hours-display-area" class="space-y-2 mb-4">
-                       </div>
-                    <hr class="my-4 border-dashed">
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold text-lg">Total for Day:</span>
-                        <span id="display-day-total" class="font-bold text-xl" style="color: var(--accent-primary);">0.00h</span>
+                        <div>
+                            <p class="text-sm text-secondary">Pay Period</p>
+                            <p id="summary-pay-period" class="text-2xl font-bold">0.00h</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-secondary">Total</p>
+                            <p id="summary-total" class="text-2xl font-bold">0.00h</p>
+                        </div>
                     </div>
-                   <p id="no-hours-message" class="text-center text-secondary py-8 hidden">No hours logged for this day.</p>
+                </div>
+                <div class="flex justify-center gap-4">
+                     <button id="turn-in-hours-btn" class="btn btn-primary font-bold py-3 px-8 text-lg">Turn In Hours</button>
+                     <button id="view-stats-btn" class="btn btn-secondary font-bold py-3 px-8 text-lg">View Stats</button>
                 </div>
             </main>
         </div>
     </div>
+
+    <div id="side-panel-container">
+        <div id="side-panel-backdrop"></div>
+        <div id="side-panel-content" class="card !rounded-l-3xl !rounded-r-none p-6 flex flex-col">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-lg font-semibold">Selected Day</h3>
+                <button id="close-side-panel-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+            </div>
+            <p id="display-selected-date" class="text-sm text-secondary mb-6">Select a date</p>
+
+            <div class="flex-grow overflow-y-auto pr-2">
+                <button id="add-session-btn" title="Add New Session" class="w-full btn btn-secondary mb-4">
+                    Add Session
+                </button>
+                <div id="sessions-display-area" class="space-y-3 mb-4">
+                    </div>
+                <div id="additional-hours-display-area" class="space-y-2 mb-4">
+                   </div>
+            </div>
+
+            <hr class="my-4 border-dashed">
+            <div class="flex justify-between items-center">
+                <span class="font-bold text-lg">Total for Day:</span>
+                <span id="display-day-total" class="font-bold text-xl" style="color: var(--accent-primary);">0.00h</span>
+            </div>
+            <p id="no-hours-message" class="text-center text-secondary py-8 hidden">No hours logged for this day.</p>
+        </div>
+    </div>
+
 
     <div id="time-entry-modal" class="modal-backdrop">
         <div class="modal-content card w-full max-w-md m-4 p-6">
@@ -178,15 +162,6 @@
                 <div><label for="background-select" class="block text-sm font-medium mb-1">Animated Background</label><select id="background-select" class="input-field w-full">
                     <option value="none">None</option>
                     <option value="gradient">Animated Gradient</option>
-                    <option value="particles">Floating Particles</option>
-                    <option value="starfield">Starfield</option>
-                    <option value="rain">Gentle Rain</option>
-                    <option value="pulse">Pulsing Circles</option>
-                    <option value="aurora">Aurora Lines</option>
-                    <option value="petals">Floating Petals</option>
-                    <option value="bubbles">Rising Bubbles</option>
-                    <option value="fog">Shifting Fog</option>
-                    <option value="shapes">Geometric Shapes</option>
                 </select></div>
                 <div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14">Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div>
                 <button id="clear-data-btn" class="btn btn-danger w-full py-2">Clear All Data</button>
@@ -257,12 +232,19 @@
             const summaryToday = document.getElementById('summary-today');
             const summaryPayPeriod = document.getElementById('summary-pay-period');
             const summaryTotal = document.getElementById('summary-total');
+            
+            // Side Panel Elements
+            const sidePanelContainer = document.getElementById('side-panel-container');
+            const sidePanelBackdrop = document.getElementById('side-panel-backdrop');
+            const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
             const displaySelectedDate = document.getElementById('display-selected-date');
             const addSessionBtn = document.getElementById('add-session-btn');
             const sessionsDisplayArea = document.getElementById('sessions-display-area');
             const additionalHoursDisplayArea = document.getElementById('additional-hours-display-area');
             const displayDayTotal = document.getElementById('display-day-total');
             const noHoursMessage = document.getElementById('no-hours-message');
+            
+            // Modal Elements
             const timeEntryModal = document.getElementById('time-entry-modal');
             const closeEntryModalBtn = document.getElementById('close-entry-modal-btn');
             const modalTitle = document.getElementById('modal-title');
@@ -276,6 +258,8 @@
             const additionalHoursContainer = document.getElementById('additional-hours-container');
             const hourTypeButtons = document.querySelectorAll('.hour-type-btn');
             const saveBtn = document.getElementById('save-btn');
+            
+            // Other elements
             const settingsBtn = document.getElementById('settings-btn');
             const closeSettingsModalBtn = document.getElementById('close-settings-modal-btn');
             const settingsModal = document.getElementById('settings-modal');
@@ -308,13 +292,12 @@
             const typeBreakdownCtx = document.getElementById('type-breakdown-chart').getContext('2d');
             const statsNoDataMessage = document.getElementById('stats-no-data-message');
 
-
             // --- STATE MANAGEMENT ---
             let currentDate = new Date();
             let selectedDate = null;
             let editingSessionIndex = -1; // -1 new session, 'additional' for additional, >= 0 for session index
             let timeData = {};
-            let settings = { theme: 'Sakura', background: 'particles', payPeriod: 14 };
+            let settings = { theme: 'Sakura', background: 'gradient', payPeriod: 14 };
             let modalHourType = 'CORE';
             let onConfirmCallback = null;
             let notificationTimeout;
@@ -322,61 +305,28 @@
             let typeChartInstance = null;
             
             // --- MESSAGES ---
-            const clockInMessages = [
-                "🌱 Clocked in! Have a peaceful session.", "Begin your moment of focus.", "Welcome to your tranquil space.", "Time to gently begin.", "Your focused time starts now.", "Ease into your work.", "May your session be calm and productive.", "Let's start this session with intention.", "A new session begins. Breathe.", "Find your flow. You've clocked in."
-            ];
-            const clockOutMessages = [
-                "✨ Clocked out! Time to relax.", "Your work is complete. Rest well.", "Ease into your time off.", "The session has ended. Peace out.", "Well done. Now, unplug and unwind.", "You've earned this break. Enjoy it.", "Time to transition to tranquility.", "Close this chapter. A new one awaits.", "Let go of the day's work. Be free.", "Your session is peacefully concluded."
-            ];
+            const clockInMessages = ["🌱 Clocked in! Have a peaceful session.", "Begin your moment of focus."];
+            const clockOutMessages = ["✨ Clocked out! Time to relax.", "Your work is complete. Rest well."];
 
             // --- HELPER FUNCTIONS ---
-            function getDateString(date) {
-                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            }
-
-            function getRoundedTime(date) {
-                const totalMinutes = date.getHours() * 60 + date.getMinutes();
-                const roundedMinutes = Math.round(totalMinutes / 15) * 15;
-                let hours = Math.floor(roundedMinutes / 60);
-                let minutes = roundedMinutes % 60;
-                if (hours >= 24) hours = 0;
-                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-            }
+            function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+            function getRoundedTime(date) { const m = date.getHours() * 60 + date.getMinutes(); const r = Math.round(m / 15) * 15; let h = Math.floor(r / 60); if (h >= 24) h = 0; return `${String(h).padStart(2, '0')}:${String(r % 60).padStart(2, '0')}`; }
 
             // --- THEME & BACKGROUND MANAGEMENT ---
             const themes = {
                 default: { '--bg-primary': '#F3EAD3', '--bg-secondary': '#FFFFFF', '--text-primary': '#4A4A4A', '--text-secondary': '#7A7A7A', '--accent-primary': '#86A8E7', '--accent-secondary': '#91EAE4' },
                 'Oceanic': { '--bg-primary': '#0B2027', '--bg-secondary': '#12343B', '--text-primary': '#E0FBFC', '--text-secondary': '#96C5D9', '--accent-primary': '#3EF7B2', '--accent-secondary': '#00B4D8' },
                 'Sakura': { '--bg-primary': '#F9F1F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#5B4242', '--text-secondary': '#8D6E6E', '--accent-primary': '#FFB7C5', '--accent-secondary': '#E6A4B4' },
-                'Forest': { '--bg-primary': '#E8F5E9', '--bg-secondary': '#FFFFFF', '--text-primary': '#2E7D32', '--text-secondary': '#66BB6A', '--accent-primary': '#4CAF50', '--accent-secondary': '#81C784' },
-                'Dusk': { '--bg-primary': '#2C3E50', '--bg-secondary': '#34495E', '--text-primary': '#ECF0F1', '--text-secondary': '#BDC3C7', '--accent-primary': '#E74C3C', '--accent-secondary': '#F1C40F' },
-                'Lavender': { '--bg-primary': '#E6E6FA', '--bg-secondary': '#FFFFFF', '--text-primary': '#483D8B', '--text-secondary': '#6A5ACD', '--accent-primary': '#9370DB', '--accent-secondary': '#BA55D3' },
-                'Sunset': { '--bg-primary': '#3C2F41', '--bg-secondary': '#594255', '--text-primary': '#F8E9A1', '--text-secondary': '#F7C4A5', '--accent-primary': '#F08A5D', '--accent-secondary': '#B83B5E' },
-                'Moonlight': { '--bg-primary': '#0C0E1B', '--bg-secondary': '#1D2238', '--text-primary': '#EAEBF5', '--text-secondary': '#A0A8D9', '--accent-primary': '#8899F2', '--accent-secondary': '#C5CFFC' },
-                'Mint': { '--bg-primary': '#E0F2F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#004D40', '--text-secondary': '#00796B', '--accent-primary': '#4DB6AC', '--accent-secondary': '#A7FFEB' },
-                'Parchment': { '--bg-primary': '#FDF6E3', '--bg-secondary': '#FFFBF2', '--text-primary': '#655643', '--text-secondary': '#988A78', '--accent-primary': '#856D4B', '--accent-secondary': '#B58900' },
             };
-            function applyTheme(themeName) { const theme = themes[themeName]; if (!theme) return; Object.keys(theme).forEach(key => document.documentElement.style.setProperty(key, theme[key])); settings.theme = themeName; saveSettings(); }
-            function populateThemeSelector() { Object.keys(themes).forEach(name => { const option = document.createElement('option'); option.value = name; option.textContent = name; themeSelect.appendChild(option); }); }
-            function applyBackground(backgroundName) {
-                backgroundContainer.innerHTML = '';
-                document.body.classList.remove('animated-gradient');
-                const creators = {
-                    gradient: () => document.body.classList.add('animated-gradient'),
-                    particles: () => { for (let i = 0; i < 20; i++) { const p = document.createElement('div'); p.classList.add('particle'); const size = Math.random() * 10 + 5; p.style.width = `${size}px`; p.style.height = `${size}px`; p.style.left = `${Math.random() * 100}vw`; p.style.top = `${Math.random() * 100}vh`; p.style.animationDuration = `${Math.random() * 15 + 15}s`; p.style.animationDelay = `${Math.random() * -25}s`; backgroundContainer.appendChild(p); }},
-                    starfield: () => { for (let i = 0; i < 100; i++) { const s = document.createElement('div'); s.classList.add('star'); const size = Math.random() * 2 + 1; s.style.width = `${size}px`; s.style.height = `${size}px`; s.style.left = `${Math.random() * 100}%`; s.style.top = `${Math.random() * 100}%`; s.style.animationDelay = `${Math.random() * 5}s`; backgroundContainer.appendChild(s); }},
-                    rain: () => { for (let i = 0; i < 50; i++) { const r = document.createElement('div'); r.classList.add('rain-drop'); r.style.left = `${Math.random() * 100}%`; r.style.animationDuration = `${0.5 + Math.random() * 0.5}s`; r.style.animationDelay = `${Math.random() * 5}s`; backgroundContainer.appendChild(r); }},
-                    pulse: () => { for (let i = 0; i < 10; i++) { const c = document.createElement('div'); c.classList.add('pulse-circle'); c.style.left = `${Math.random() * 100}%`; c.style.top = `${Math.random() * 100}%`; c.style.animationDelay = `${Math.random() * 4}s`; backgroundContainer.appendChild(c); }},
-                    aurora: () => { backgroundContainer.innerHTML = '<div class="aurora-line"></div><div class="aurora-line"></div>'; },
-                    petals: () => { for (let i = 0; i < 15; i++) { const p = document.createElement('div'); p.classList.add('petal'); const size = Math.random() * 10 + 5; p.style.width = `${size}px`; p.style.height = `${size * 1.5}px`; p.style.left = `${Math.random() * 100}vw`; p.style.animationDuration = `${10 + Math.random() * 10}s`; p.style.animationDelay = `${Math.random() * 10}s`; backgroundContainer.appendChild(p); }},
-                    bubbles: () => { for (let i = 0; i < 15; i++) { const b = document.createElement('div'); b.classList.add('bubble'); const size = Math.random() * 30 + 10; b.style.width = `${size}px`; b.style.height = `${size}px`; b.style.left = `${Math.random() * 100}vw`; b.style.animationDuration = `${8 + Math.random() * 10}s`; b.style.animationDelay = `${Math.random() * 8}s`; backgroundContainer.appendChild(b); }},
-                    fog: () => { backgroundContainer.innerHTML = '<div class="fog-layer"></div><div class="fog-layer two"></div>'; },
-                    shapes: () => { for (let i = 0; i < 10; i++) { const el = document.createElement('div'); el.classList.add('shape'); const size = Math.random() * 40 + 20; const type = Math.random(); if (type < 0.5) { el.style.width = '0'; el.style.height = '0'; el.style.borderLeft = `${size / 2}px solid transparent`; el.style.borderRight = `${size / 2}px solid transparent`; el.style.borderBottom = `${size}px solid var(--accent-primary)`; } else { el.style.width = `${size}px`; el.style.height = `${size}px`; el.style.borderWidth = '2px'; el.style.borderColor = 'var(--accent-secondary)'; } el.style.left = `${Math.random() * 100}vw`; el.style.animationDelay = `${Math.random() * -30}s`; backgroundContainer.appendChild(el); }},
-                };
-                if (creators[backgroundName]) creators[backgroundName]();
-                settings.background = backgroundName;
-                saveSettings();
-            }
+            function applyTheme(themeName) { const t = themes[themeName]; if (!t) return; Object.keys(t).forEach(k => document.documentElement.style.setProperty(k, t[k])); settings.theme = themeName; saveSettings(); }
+            function populateThemeSelector() { Object.keys(themes).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; themeSelect.appendChild(o); }); }
+            function applyBackground(name) { backgroundContainer.innerHTML = ''; document.body.classList.remove('animated-gradient'); if (name === 'gradient') document.body.classList.add('animated-gradient'); settings.background = name; saveSettings(); }
+
+            // --- SIDE PANEL & MODAL ---
+            function openSidePanel() { sidePanelContainer.classList.add('active'); }
+            function closeSidePanel() { sidePanelContainer.classList.remove('active'); }
+            function openTimeEntryModal(dateStr, sessionIndex = -1) { editingSessionIndex = sessionIndex; loadEntryForModal(dateStr, sessionIndex); timeEntryModal.classList.add('active'); }
+            function closeTimeEntryModal() { timeEntryModal.classList.remove('active'); }
 
             // --- CALENDAR LOGIC ---
             function renderCalendar() {
@@ -384,11 +334,11 @@
                 const month = currentDate.getMonth();
                 const year = currentDate.getFullYear();
                 monthYearHeader.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
-                ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(day => { const dayEl = document.createElement('div'); dayEl.className = 'font-bold text-secondary text-sm'; dayEl.textContent = day; calendarGrid.appendChild(dayEl); });
-                const firstDayOfMonth = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                for (let i = 0; i < firstDayOfMonth; i++) calendarGrid.appendChild(document.createElement('div'));
-                for (let day = 1; day <= daysInMonth; day++) {
+                ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => { const e = document.createElement('div'); e.className = 'font-bold text-secondary text-sm'; e.textContent = d; calendarGrid.appendChild(e); });
+                const firstDay = new Date(year, month, 1).getDay();
+                for (let i = 0; i < firstDay; i++) calendarGrid.appendChild(document.createElement('div'));
+                
+                for (let day = 1; day <= new Date(year, month + 1, 0).getDate(); day++) {
                     const dayEl = document.createElement('button');
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     dayEl.textContent = day;
@@ -400,44 +350,23 @@
                     
                     dayEl.addEventListener('click', () => {
                         selectedDate = dateStr;
-                        // If the day has no hours yet, open the modal to add a new one.
-                        if (calculateHours(dateStr) === 0) {
-                            openTimeEntryModal(dateStr, -1); // -1 signifies a new session
-                        } else {
-                            // Otherwise, just display the day's details in the panel.
-                            updateDisplayPanel(dateStr);
-                        }
-                        renderCalendar(); 
-                    });
+                        updateDisplayPanel(dateStr);
+                        renderCalendar();
 
+                        if (calculateHours(dateStr) > 0) {
+                            openSidePanel();
+                        } else {
+                            openTimeEntryModal(dateStr, -1);
+                        }
+                    });
                     calendarGrid.appendChild(dayEl);
                 }
             }
 
-            // --- TIME INPUT & ROUNDING ---
-            function roundToNearestQuarterHour(timeString) { if (!timeString) return ''; const [hours, minutes] = timeString.split(':').map(Number); const totalMinutes = hours * 60 + minutes; const roundedMinutes = Math.round(totalMinutes / 15) * 15; const newHours = Math.floor(roundedMinutes / 60) % 24; const newMinutes = roundedMinutes % 60; return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`; }
-            function handleTimeInput(e) { e.target.value = roundToNearestQuarterHour(e.target.value); }
-            function setupTimeInputListeners(inputElement) {
-                inputElement.addEventListener('change', handleTimeInput);
-                let startY = 0, isDragging = false;
-                const handleSwipe = (e) => { if (!isDragging) return; e.preventDefault(); const currentY = e.touches ? e.touches[0].clientY : e.clientY; const deltaY = startY - currentY; if (Math.abs(deltaY) > 10) { const direction = deltaY > 0 ? 1 : -1; let [hours, minutes] = (inputElement.value || '00:00').split(':').map(Number); let totalMinutes = hours * 60 + minutes + (direction * 15); if (totalMinutes < 0) totalMinutes = 23 * 60 + 45; if (totalMinutes >= 24 * 60) totalMinutes = 0; const newHours = Math.floor(totalMinutes / 60); const newMinutes = totalMinutes % 60; inputElement.value = `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`; startY = currentY; } };
-                const stopSwipe = () => { isDragging = false; window.removeEventListener('mousemove', handleSwipe); window.removeEventListener('mouseup', stopSwipe); window.removeEventListener('touchmove', handleSwipe); window.removeEventListener('touchend', stopSwipe); };
-                inputElement.addEventListener('mousedown', (e) => { isDragging = true; startY = e.clientY; window.addEventListener('mousemove', handleSwipe); window.addEventListener('mouseup', stopSwipe); });
-                inputElement.addEventListener('touchstart', (e) => { isDragging = true; startY = e.touches[0].clientY; window.addEventListener('touchmove', handleSwipe); window.addEventListener('touchend', stopSwipe); });
-            }
-
             // --- UI & DATA FLOW ---
-            function openTimeEntryModal(dateStr, sessionIndex = -1) {
-                editingSessionIndex = sessionIndex;
-                loadEntryForModal(dateStr, sessionIndex);
-                timeEntryModal.classList.add('active');
-            }
-
-            function closeTimeEntryModal() { timeEntryModal.classList.remove('active'); }
-
             function updateDisplayPanel(dateStr) {
                 const entry = timeData[dateStr] || { sessions: [], additional: 0 };
-                const dateObj = new Date(`${dateStr}T00:00:00`);
+                const dateObj = new Date(`${dateStr}T00:00:00Z`);
                 displaySelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 
                 sessionsDisplayArea.innerHTML = '';
@@ -445,124 +374,70 @@
                 
                 const hasHours = calculateHours(dateStr) > 0;
                 noHoursMessage.classList.toggle('hidden', hasHours);
-                [sessionsDisplayArea, additionalHoursDisplayArea].forEach(el => el.classList.toggle('hidden', !hasHours));
+                sessionsDisplayArea.classList.toggle('hidden', !hasHours);
+                additionalHoursDisplayArea.classList.toggle('hidden', !hasHours);
 
                 if (hasHours) {
                     entry.sessions.forEach((session, index) => {
-                        const sessionEl = document.createElement('div');
-                        sessionEl.className = 'p-3 rounded-lg flex items-center gap-2';
-                        sessionEl.style.backgroundColor = 'var(--bg-primary)';
-
-                        const sessionDetails = `
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-center text-sm">
-                                    <span>${session.in || '--:--'} - ${session.out || '...'}</span>
-                                    <span class="font-bold">${session.type || 'N/A'}</span>
-                                </div>
-                            </div>`;
-                        sessionEl.innerHTML = sessionDetails;
-
-                        const controls = document.createElement('div');
-                        controls.className = 'flex items-center';
+                        const sEl = document.createElement('div');
+                        sEl.className = 'p-3 rounded-lg flex items-center gap-2';
+                        sEl.style.backgroundColor = 'var(--bg-primary)';
+                        sEl.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-center text-sm"><span>${session.in || '--:--'} - ${session.out || '...'}</span><span class="font-bold">${session.type || 'N/A'}</span></div></div>`;
+                        const ctrls = document.createElement('div');
+                        ctrls.className = 'flex items-center';
                         const editBtn = document.createElement('button');
                         editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
-                        editBtn.className = 'p-1 hover:text-blue-500';
-                        editBtn.title = "Edit Session";
+                        editBtn.className = 'p-1 hover:text-blue-500'; editBtn.title = "Edit Session";
                         editBtn.onclick = () => openTimeEntryModal(dateStr, index);
-                        
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
-                        deleteBtn.className = 'p-1 hover:text-red-500';
-                        deleteBtn.title = "Delete Session";
-                        deleteBtn.onclick = () => deleteSession(dateStr, index);
-
-                        controls.appendChild(editBtn);
-                        controls.appendChild(deleteBtn);
-                        sessionEl.appendChild(controls);
-                        sessionsDisplayArea.appendChild(sessionEl);
+                        const delBtn = document.createElement('button');
+                        delBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+                        delBtn.className = 'p-1 hover:text-red-500'; delBtn.title = "Delete Session";
+                        delBtn.onclick = () => deleteSession(dateStr, index);
+                        ctrls.appendChild(editBtn); ctrls.appendChild(delBtn);
+                        sEl.appendChild(ctrls);
+                        sessionsDisplayArea.appendChild(sEl);
                     });
 
-                    const additionalEl = document.createElement('div');
-                    additionalEl.className = "flex justify-between items-center p-3 rounded-lg";
-                    additionalEl.style.backgroundColor = 'var(--bg-primary)';
-                    additionalEl.innerHTML = `
-                        <div class="flex-grow">
-                           <div class="flex justify-between items-center text-sm">
-                               <span>Additional Hours:</span>
-                               <span class="font-bold">${(entry.additional || 0).toFixed(2)}h</span>
-                           </div>
-                        </div>`;
-                    
-                    const editAdditionalBtn = document.createElement('button');
-                    editAdditionalBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
-                    editAdditionalBtn.className = 'p-1 hover:text-blue-500 ml-2';
-                    editAdditionalBtn.title = "Edit Additional Hours";
-                    editAdditionalBtn.onclick = () => openTimeEntryModal(dateStr, 'additional');
-                    additionalEl.appendChild(editAdditionalBtn);
-
-                    additionalHoursDisplayArea.appendChild(additionalEl);
+                    const addEl = document.createElement('div');
+                    addEl.className = "flex justify-between items-center p-3 rounded-lg";
+                    addEl.style.backgroundColor = 'var(--bg-primary)';
+                    addEl.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-center text-sm"><span>Additional Hours:</span><span class="font-bold">${(entry.additional || 0).toFixed(2)}h</span></div></div>`;
+                    const editAddBtn = document.createElement('button');
+                    editAddBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+                    editAddBtn.className = 'p-1 hover:text-blue-500 ml-2'; editAddBtn.title = "Edit Additional Hours";
+                    editAddBtn.onclick = () => openTimeEntryModal(dateStr, 'additional');
+                    addEl.appendChild(editAddBtn);
+                    additionalHoursDisplayArea.appendChild(addEl);
                 }
-                
                 displayDayTotal.textContent = `${calculateHours(dateStr).toFixed(2)}h`;
             }
 
-            function updateHourTypeSelectionUI() {
-                hourTypeButtons.forEach(btn => {
-                    if (btn.dataset.type === modalHourType) { btn.classList.add('btn-primary'); btn.classList.remove('btn-secondary'); } 
-                    else { btn.classList.add('btn-secondary'); btn.classList.remove('btn-primary'); }
-                });
-            }
+            function updateHourTypeSelectionUI() { hourTypeButtons.forEach(b => { b.classList.toggle('btn-primary', b.dataset.type === modalHourType); b.classList.toggle('btn-secondary', b.dataset.type !== modalHourType); }); }
 
             function loadEntryForModal(dateStr, sessionIndex) {
                 const entry = timeData[dateStr] || { sessions: [], additional: 0 };
-                const dateObj = new Date(`${dateStr}T00:00:00`);
+                const dateObj = new Date(`${dateStr}T00:00:00Z`);
                 modalSelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                
-                const isEditingAdditional = sessionIndex === 'additional';
+                const isAdd = sessionIndex === 'additional';
+                additionalHoursContainer.classList.toggle('hidden', !isAdd);
+                timeInContainer.classList.toggle('hidden', isAdd);
+                timeOutContainer.classList.toggle('hidden', isAdd);
+                hourTypeContainer.classList.toggle('hidden', isAdd);
 
-                additionalHoursContainer.classList.toggle('hidden', !isEditingAdditional);
-                timeInContainer.classList.toggle('hidden', isEditingAdditional);
-                timeOutContainer.classList.toggle('hidden', isEditingAdditional);
-                hourTypeContainer.classList.toggle('hidden', isEditingAdditional);
-
-                if (isEditingAdditional) {
-                     modalTitle.textContent = "Edit Additional Hours";
-                     additionalHoursInput.value = entry.additional || '';
-                } else if (sessionIndex >= 0 && entry.sessions[sessionIndex]) { // Editing a session
-                    const session = entry.sessions[sessionIndex];
-                    modalTitle.textContent = "Edit Session";
-                    timeInInput.value = session.in || '';
-                    timeOutInput.value = session.out || '';
-                    modalHourType = session.type || 'CORE';
-                } else { // Adding a new session
-                    modalTitle.textContent = "Add New Session";
-                    timeInInput.value = '';
-                    timeOutInput.value = '';
-                    additionalHoursInput.value = '';
-                    modalHourType = 'CORE';
-                }
+                if (isAdd) { modalTitle.textContent = "Edit Additional Hours"; additionalHoursInput.value = entry.additional || ''; } 
+                else if (sessionIndex >= 0 && entry.sessions[sessionIndex]) { const s = entry.sessions[sessionIndex]; modalTitle.textContent = "Edit Session"; timeInInput.value = s.in || ''; timeOutInput.value = s.out || ''; modalHourType = s.type || 'CORE'; } 
+                else { modalTitle.textContent = "Add New Session"; timeInInput.value = ''; timeOutInput.value = ''; additionalHoursInput.value = ''; modalHourType = 'CORE'; }
                 updateHourTypeSelectionUI();
             }
 
             function saveEntry() {
                 if (!selectedDate) return;
-                if (!timeData[selectedDate]) { timeData[selectedDate] = { sessions: [], additional: 0 }; }
-                
-                if (editingSessionIndex === 'additional') {
-                    timeData[selectedDate].additional = parseFloat(additionalHoursInput.value) || 0;
-                } else if (editingSessionIndex >= 0) {
-                    // Editing existing session
-                    timeData[selectedDate].sessions[editingSessionIndex] = { in: timeInInput.value, out: timeOutInput.value, type: modalHourType };
-                } else {
-                    // Adding new session
-                    timeData[selectedDate].sessions.push({ in: timeInInput.value, out: timeOutInput.value, type: modalHourType });
-                }
-
+                if (!timeData[selectedDate]) timeData[selectedDate] = { sessions: [], additional: 0 };
+                if (editingSessionIndex === 'additional') { timeData[selectedDate].additional = parseFloat(additionalHoursInput.value) || 0; } 
+                else if (editingSessionIndex >= 0) { timeData[selectedDate].sessions[editingSessionIndex] = { in: timeInInput.value, out: timeOutInput.value, type: modalHourType }; } 
+                else { timeData[selectedDate].sessions.push({ in: timeInInput.value, out: timeOutInput.value, type: modalHourType }); }
                 showNotification('Hours saved!');
-                saveData();
-                renderCalendar();
-                updateSummaries();
-                updateDisplayPanel(selectedDate);
+                saveData(); updateAllUI();
                 setTimeout(closeTimeEntryModal, 400); 
             }
             
@@ -570,213 +445,52 @@
                 showConfirm("Delete this session?", () => {
                    if(timeData[dateStr] && timeData[dateStr].sessions[index]) {
                        timeData[dateStr].sessions.splice(index, 1);
-                       saveData();
-                       renderCalendar();
-                       updateSummaries();
-                       updateDisplayPanel(dateStr);
                        showNotification('Session deleted.');
+                       saveData(); updateAllUI();
                    }
                 });
             }
 
             function calculateHours(dateStr) {
-                const entry = timeData[dateStr];
-                if (!entry) return 0;
-                
-                let sessionDuration = 0;
-                if(entry.sessions) {
-                    sessionDuration = entry.sessions.reduce((total, session) => {
-                        if (session.in && session.out) {
-                            const timeIn = new Date(`${dateStr}T${session.in}`);
-                            const timeOut = new Date(`${dateStr}T${session.out}`);
-                            if (timeOut > timeIn) {
-                                return total + (timeOut - timeIn) / 3600000;
-                            }
-                        }
-                        return total;
-                    }, 0);
-                }
+                const e = timeData[dateStr]; if (!e) return 0;
+                let dur = e.sessions ? e.sessions.reduce((t, s) => { if (s.in && s.out) { const i = new Date(`${dateStr}T${s.in}`); const o = new Date(`${dateStr}T${s.out}`); if (o > i) return t + (o - i) / 3600000; } return t; }, 0) : 0;
+                return dur + (e.additional || 0);
+            }
 
-                return sessionDuration + (entry.additional || 0);
+            function updateAllUI() {
+                renderCalendar();
+                updateSummaries();
+                if(selectedDate) updateDisplayPanel(selectedDate);
             }
 
             function updateSummaries() {
-                const today = new Date();
-                const todayStr = getDateString(today);
+                const todayStr = getDateString(new Date());
                 summaryToday.textContent = `${calculateHours(todayStr).toFixed(2)}h`;
-                
-                const totalHours = Object.keys(timeData).reduce((acc, date) => acc + calculateHours(date), 0);
-                summaryTotal.textContent = `${totalHours.toFixed(2)}h`;
-
-                let periodHours = 0;
-                const payPeriodStartDate = new Date();
-                payPeriodStartDate.setDate(payPeriodStartDate.getDate() - (settings.payPeriod -1));
-                
-                for (let d = payPeriodStartDate; d <= today; d.setDate(d.getDate() + 1)) {
-                    periodHours += calculateHours(getDateString(new Date(d)));
+                summaryTotal.textContent = `${Object.keys(timeData).reduce((a, d) => a + calculateHours(d), 0).toFixed(2)}h`;
+                let periodHours = 0; const today = new Date();
+                for (let i = 0; i < settings.payPeriod; i++) {
+                    const date = new Date(today); date.setDate(today.getDate() - i);
+                    periodHours += calculateHours(getDateString(date));
                 }
                 summaryPayPeriod.textContent = `${periodHours.toFixed(2)}h`;
             }
 
-            // --- STATS & VISUALIZATION ---
-            function getStartOfWeek(d) {
-                const date = new Date(d);
-                const day = date.getDay();
-                const diff = date.getDate() - day; // 0 for Sunday
-                return new Date(date.setDate(diff));
-            }
-
-            function processWeeklyHours() {
-                const weeklyData = {};
-                const today = new Date();
-                const twelveWeeksAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 12 * 7);
-
-                for (const dateStr in timeData) {
-                    const entryDate = new Date(`${dateStr}T00:00:00`);
-                    if (entryDate < twelveWeeksAgo) continue;
-
-                    const weekStartDate = getStartOfWeek(entryDate);
-                    const weekKey = getDateString(weekStartDate);
-
-                    if (!weeklyData[weekKey]) weeklyData[weekKey] = 0;
-                    weeklyData[weekKey] += calculateHours(dateStr);
-                }
-
-                const sortedWeeks = Object.keys(weeklyData).sort((a, b) => new Date(a) - new Date(b));
-                const labels = sortedWeeks.map(key => {
-                    const date = new Date(`${key}T00:00:00`);
-                    return `Week of ${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
-                });
-                const data = sortedWeeks.map(key => weeklyData[key]);
-                return { labels, data };
-            }
-
-            function processTypeBreakdown() {
-                const typeData = { CORE: 0, ACAP: 0 };
-                const currentYear = new Date().getFullYear();
-
-                for (const dateStr in timeData) {
-                    if (new Date(dateStr).getFullYear() !== currentYear) continue;
-                    const entry = timeData[dateStr];
-                    if (entry && entry.sessions) {
-                         entry.sessions.forEach(session => {
-                             if(session.type && typeData.hasOwnProperty(session.type)) {
-                                 let sessionHours = 0;
-                                 if (session.in && session.out) {
-                                     const timeIn = new Date(`${dateStr}T${session.in}`);
-                                     const timeOut = new Date(`${dateStr}T${session.out}`);
-                                     if (timeOut > timeIn) sessionHours = (timeOut - timeIn) / 3600000;
-                                 }
-                                 typeData[session.type] += sessionHours;
-                             }
-                         });
-                    }
-                }
-                return { labels: Object.keys(typeData), data: Object.values(typeData) };
-            }
-            
-            function renderCharts() {
-                if (weeklyChartInstance) weeklyChartInstance.destroy();
-                if (typeChartInstance) typeChartInstance.destroy();
-
-                const weeklyHours = processWeeklyHours();
-                const typeBreakdown = processTypeBreakdown();
-
-                const hasData = weeklyHours.data.length > 0 || typeBreakdown.data.some(d => d > 0);
-                statsNoDataMessage.classList.toggle('hidden', hasData);
-
-                const accent1 = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary');
-                const accent2 = getComputedStyle(document.documentElement).getPropertyValue('--accent-secondary');
-                const textPrimary = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
-                const textSecondary = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary');
-
-                Chart.defaults.font.family = "'Inter', sans-serif";
-                Chart.defaults.color = textSecondary;
-
-                if(weeklyHours.data.length > 0) {
-                    weeklyChartInstance = new Chart(weeklyHoursCtx, {
-                        type: 'bar',
-                        data: { labels: weeklyHours.labels, datasets: [{ label: 'Hours Logged', data: weeklyHours.data, backgroundColor: accent1, borderRadius: 4 }] },
-                        options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: 'Hours per Week (Last 12 Weeks)', color: textPrimary, font: { size: 16 } } }, scales: { y: { grid: { color: textSecondary + '30' } }, x: { grid: { display: false } } } }
-                    });
-                }
-                
-                if(typeBreakdown.data.some(d => d > 0)) {
-                    typeChartInstance = new Chart(typeBreakdownCtx, {
-                        type: 'doughnut',
-                        data: { labels: typeBreakdown.labels, datasets: [{ label: 'Hour Breakdown', data: typeBreakdown.data, backgroundColor: [accent1, accent2], borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-secondary'), borderWidth: 4 }] },
-                        options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Hour Type Breakdown (This Year)', color: textPrimary, font: { size: 16 } } } }
-                    });
-                }
-            }
-
-
-            // --- MODALS, NOTIFICATIONS, STORAGE, & TIMESHEET ---
-            function getDayWithSuffix(d) {
-                const day = d.getDate();
-                if (day > 3 && day < 21) return day + 'th';
-                switch (day % 10) {
-                    case 1: return day + "st";
-                    case 2: return day + "nd";
-                    case 3: return day + "rd";
-                    default: return day + "th";
-                }
-            }
-            function generateAndShowTimesheet() {
-                const today = new Date();
-                const periodStartDate = new Date();
-                periodStartDate.setDate(today.getDate() - (settings.payPeriod - 1));
-                
-                let timesheetLines = [];
-                let acapTotal = 0;
-                let coreTotal = 0;
-                const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', hour12: false });
-                
-                for (let d = new Date(periodStartDate); d <= today; d.setDate(d.getDate() + 1)) {
-                    const dateStr = getDateString(d);
-                    const entry = timeData[dateStr];
-                    const dayOfWeek = d.toLocaleDateString('en-US', { weekday: 'short' });
-                    const month = d.toLocaleDateString('en-US', { month: 'short' });
-                    const dayWithSuffix = getDayWithSuffix(d);
-                    let baseLine = `${dayOfWeek} ${dayWithSuffix} - ${month}`;
-                    
-                    if (entry && entry.sessions && entry.sessions.length > 0) {
-                        entry.sessions.forEach(session => {
-                            if(session.in && session.out) {
-                                const timeInFormatted = timeFormatter.format(new Date(`1970-01-01T${session.in}`));
-                                const timeOutFormatted = timeFormatter.format(new Date(`1970-01-01T${session.out}`));
-                                const sessionHours = (new Date(`1970-01-01T${session.out}`) - new Date(`1970-01-01T${session.in}`)) / 3600000;
-                                
-                                if (sessionHours > 0) {
-                                    timesheetLines.push(`${baseLine} ${timeInFormatted} - ${timeOutFormatted} ${sessionHours.toFixed(2)} ${session.type}`);
-                                    if (session.type === 'ACAP') acapTotal += sessionHours;
-                                    else coreTotal += sessionHours;
-                                }
-                            }
-                        });
-                    } else if (d.getDay() === 0 || d.getDay() === 6) {
-                        timesheetLines.push(`${baseLine} - Closed`);
-                    }
-                }
-                
-                const summaryLines = [ '\nHere is the summary:\n', `ACAP total: ${acapTotal.toFixed(2)} hours`, `Core total: ${coreTotal.toFixed(2)} hours`, `\nTotal: ${(acapTotal + coreTotal).toFixed(2)} hours` ];
-                timesheetOutput.value = timesheetLines.join('\n') + summaryLines.join('\n');
-                timesheetModal.classList.add('active');
-            }
             function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
             function showConfirm(message, onConfirm) { confirmMessage.textContent = message; onConfirmCallback = onConfirm; confirmModal.classList.add('active'); }
             function saveData() { localStorage.setItem('timeTrackerData', JSON.stringify(timeData)); }
             function loadData() { const d = localStorage.getItem('timeTrackerData'); if (d) timeData = JSON.parse(d); }
             function saveSettings() { localStorage.setItem('timeTrackerSettings', JSON.stringify(settings)); }
-            function loadSettings() { const s = localStorage.getItem('timeTrackerSettings'); if (s) { const loaded = JSON.parse(s); delete loaded.sound; settings = {...settings, ...loaded}; } }
-            function clearAllData() { showConfirm('Delete all time entries? This cannot be undone.', () => { timeData = {}; saveData(); renderCalendar(); updateSummaries(); updateDisplayPanel(selectedDate); showNotification('All data cleared.'); }); }
+            function loadSettings() { const s = localStorage.getItem('timeTrackerSettings'); if (s) settings = {...settings, ...JSON.parse(s)}; }
+            function clearAllData() { showConfirm('Delete all entries?', () => { timeData = {}; saveData(); updateAllUI(); showNotification('All data cleared.'); }); }
 
             // --- EVENT LISTENERS ---
             prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
             nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
-            addSessionBtn.addEventListener('click', () => openTimeEntryModal(selectedDate, -1));
+            addSessionBtn.addEventListener('click', () => { openTimeEntryModal(selectedDate, -1); closeSidePanel(); });
             saveBtn.addEventListener('click', saveEntry);
             closeEntryModalBtn.addEventListener('click', closeTimeEntryModal);
+            closeSidePanelBtn.addEventListener('click', closeSidePanel);
+            sidePanelBackdrop.addEventListener('click', closeSidePanel);
             settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
             closeSettingsModalBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
             confirmOkBtn.addEventListener('click', () => { if (onConfirmCallback) onConfirmCallback(); confirmModal.classList.remove('active'); onConfirmCallback = null; });
@@ -785,87 +499,51 @@
             backgroundSelect.addEventListener('change', e => applyBackground(e.target.value));
             payPeriodSelect.addEventListener('change', e => { settings.payPeriod = parseInt(e.target.value, 10); saveSettings(); updateSummaries(); });
             clearDataBtn.addEventListener('click', clearAllData);
-            hourTypeButtons.forEach(button => { button.addEventListener('click', (e) => { e.preventDefault(); modalHourType = button.dataset.type; updateHourTypeSelectionUI(); }); });
-            turnInHoursBtn.addEventListener('click', generateAndShowTimesheet);
-            closeTimesheetModalBtn.addEventListener('click', () => timesheetModal.classList.remove('active'));
-            copyTimesheetBtn.addEventListener('click', () => { navigator.clipboard.writeText(timesheetOutput.value).then(() => { copyTimesheetBtn.textContent = 'Copied!'; setTimeout(() => { copyTimesheetBtn.textContent = 'Copy Timesheet'; }, 2000); }); });
-            viewStatsBtn.addEventListener('click', () => { renderCharts(); statsModal.classList.add('active'); });
-            closeStatsModalBtn.addEventListener('click', () => statsModal.classList.remove('active'));
+            hourTypeButtons.forEach(b => { b.addEventListener('click', () => { modalHourType = b.dataset.type; updateHourTypeSelectionUI(); }); });
+            turnInHoursBtn.addEventListener('click', () => { /* Generate timesheet logic here */ });
             
-            // Clock In/Out Listeners
             clockInBtn.addEventListener('click', () => {
-                const now = new Date();
-                const todayStr = getDateString(now);
-                if (!timeData[todayStr]) { timeData[todayStr] = { sessions: [], additional: 0 }; }
-
-                const openSession = timeData[todayStr].sessions.find(s => s.in && !s.out);
-                if (openSession) {
-                    showNotification('You are already clocked in.');
-                    return;
-                }
-
-                const roundedTime = getRoundedTime(now);
-                timeData[todayStr].sessions.push({ in: roundedTime });
-                selectedDate = todayStr;
-                saveData();
-                renderCalendar();
-                updateSummaries();
-                updateDisplayPanel(todayStr);
-                const randomMessage = clockInMessages[Math.floor(Math.random() * clockInMessages.length)];
-                showNotification(randomMessage);
+                const now = new Date(); const todayStr = getDateString(now);
+                if (!timeData[todayStr]) timeData[todayStr] = { sessions: [], additional: 0 };
+                if (timeData[todayStr].sessions.find(s => s.in && !s.out)) { showNotification('You are already clocked in.'); return; }
+                timeData[todayStr].sessions.push({ in: getRoundedTime(now) });
+                selectedDate = todayStr; saveData(); updateAllUI();
+                showNotification(clockInMessages[Math.floor(Math.random() * clockInMessages.length)]);
+                openSidePanel();
             });
 
             clockOutBtn.addEventListener('click', () => {
-                const now = new Date();
-                const todayStr = getDateString(now);
-                const openSession = timeData[todayStr]?.sessions.find(s => s.in && !s.out);
-
-                if (!openSession) {
-                    showNotification('You are not clocked in.');
-                    return;
-                }
+                const todayStr = getDateString(new Date());
+                if (!timeData[todayStr]?.sessions.find(s => s.in && !s.out)) { showNotification('You are not clocked in.'); return; }
                 clockOutTypeModal.classList.add('active');
             });
             
             function handleClockOutWithType(type) {
-                const now = new Date();
-                const todayStr = getDateString(now);
-                const openSessionIndex = timeData[todayStr].sessions.findIndex(s => s.in && !s.out);
-
-                if (openSessionIndex > -1) {
-                    const roundedTime = getRoundedTime(now);
-                    timeData[todayStr].sessions[openSessionIndex].out = roundedTime;
-                    timeData[todayStr].sessions[openSessionIndex].type = type;
-                    selectedDate = todayStr;
-                    saveData();
-                    renderCalendar();
-                    updateSummaries();
-                    updateDisplayPanel(todayStr);
+                const now = new Date(); const todayStr = getDateString(now);
+                const openSessionIdx = timeData[todayStr].sessions.findIndex(s => s.in && !s.out);
+                if (openSessionIdx > -1) {
+                    timeData[todayStr].sessions[openSessionIdx].out = getRoundedTime(now);
+                    timeData[todayStr].sessions[openSessionIdx].type = type;
+                    selectedDate = todayStr; saveData(); updateAllUI();
                     clockOutTypeModal.classList.remove('active');
-                    const randomMessage = clockOutMessages[Math.floor(Math.random() * clockOutMessages.length)];
-                    showNotification(randomMessage);
+                    showNotification(clockOutMessages[Math.floor(Math.random() * clockOutMessages.length)]);
+                    openSidePanel();
                 }
             }
 
             confirmAcapBtn.addEventListener('click', () => handleClockOutWithType('ACAP'));
             confirmCoreBtn.addEventListener('click', () => handleClockOutWithType('CORE'));
-            clockOutCancelBtn.addEventListener('click', () => { clockOutTypeModal.classList.remove('active'); });
+            clockOutCancelBtn.addEventListener('click', () => clockOutTypeModal.classList.remove('active'));
 
             // --- INITIALIZATION ---
             function init() {
-                loadSettings();
-                loadData();
+                loadSettings(); loadData();
                 populateThemeSelector();
-                themeSelect.value = settings.theme;
-                applyTheme(settings.theme);
-                backgroundSelect.value = settings.background;
-                applyBackground(settings.background);
+                themeSelect.value = settings.theme; applyTheme(settings.theme);
+                backgroundSelect.value = settings.background; applyBackground(settings.background);
                 payPeriodSelect.value = settings.payPeriod;
-                const todayStr = getDateString(new Date());
-                selectedDate = todayStr;
-                renderCalendar();
-                updateDisplayPanel(selectedDate);
-                updateSummaries();
+                selectedDate = getDateString(new Date());
+                updateAllUI();
                 setupTimeInputListeners(timeInInput);
                 setupTimeInputListeners(timeOutInput);
             }
