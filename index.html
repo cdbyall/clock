@@ -24,7 +24,7 @@
         .btn-primary { background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: white; border-color: transparent; }
         .btn-secondary { background-color: transparent; border: 1px solid var(--accent-primary); color: var(--accent-primary); }
         .btn-danger { background-color: #E74C3C; color: white; border-color: transparent; }
-        .input-field { background-color: var(--bg-primary); border: 1px solid transparent; border-radius: 0.75rem; transition: background-color 0.3s ease, border-color 0.3s ease; padding: 0.5rem 0.75rem; cursor: ns-resize; }
+        .input-field { background-color: var(--bg-primary); border: 1px solid transparent; border-radius: 0.75rem; transition: background-color 0.3s ease, border-color 0.3s ease; padding: 0.5rem 0.75rem; cursor: text; }
         .input-field:focus { outline: none; border-color: var(--accent-primary); background-color: var(--bg-secondary); }
         #notification-toast { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 100; opacity: 0; transform: translateY(2rem); transition: opacity 0.3s ease, transform 0.3s ease; }
         #notification-toast.show { opacity: 1; transform: translateY(0); }
@@ -145,8 +145,8 @@
              </div>
             <p id="modal-selected-date" class="text-sm text-secondary mb-6"></p>
             <div class="space-y-6">
-                <div id="time-in-container"> <label class="text-sm font-medium">Time In</label> <input id="time-in" type="time" class="input-field w-full mt-1" step="900"> </div>
-                <div id="time-out-container"> <label class="text-sm font-medium">Time Out</label> <input id="time-out" type="time" class="input-field w-full mt-1" step="900"> </div>
+                <div id="time-in-container"> <label class="text-sm font-medium">Time In</label> <input id="time-in" type="time" class="input-field w-full mt-1"> </div>
+                <div id="time-out-container"> <label class="text-sm font-medium">Time Out</label> <input id="time-out" type="time" class="input-field w-full mt-1"> </div>
                 <div id="hour-type-container"> <label class="text-sm font-medium mb-2 block">Type</label> <div class="grid grid-cols-2 gap-2"> <button data-type="CORE" class="hour-type-btn btn font-semibold py-2">CORE</button> <button data-type="ACAP" class="hour-type-btn btn font-semibold py-2">ACAP</button> </div> </div>
                 <div id="additional-hours-container"> <label class="text-sm font-medium">Additional Hours (optional)</label> <input id="additional-hours" type="number" step="0.01" placeholder="e.g., 1.5" class="input-field w-full mt-1"> </div>
                 <button id="save-btn" class="btn btn-primary w-full py-3 font-bold !mt-8">Save Hours</button>
@@ -214,8 +214,9 @@
                 <button id="close-timesheet-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
             </div>
             <textarea id="timesheet-output" readonly class="w-full h-64 p-2 border rounded-lg input-field resize-none"></textarea>
-            <div class="flex gap-4 mt-4">
+            <div class="flex flex-col gap-4 mt-4">
                 <button id="copy-timesheet-btn" class="btn btn-primary w-full py-2">Copy Timesheet</button>
+                <button id="close-timesheet-btn-bottom" class="btn btn-secondary w-full py-2">Close Window</button>
             </div>
         </div>
     </div>
@@ -232,8 +233,6 @@
             const summaryToday = document.getElementById('summary-today');
             const summaryPayPeriod = document.getElementById('summary-pay-period');
             const summaryTotal = document.getElementById('summary-total');
-            
-            // Side Panel Elements
             const sidePanelContainer = document.getElementById('side-panel-container');
             const sidePanelBackdrop = document.getElementById('side-panel-backdrop');
             const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
@@ -243,8 +242,6 @@
             const additionalHoursDisplayArea = document.getElementById('additional-hours-display-area');
             const displayDayTotal = document.getElementById('display-day-total');
             const noHoursMessage = document.getElementById('no-hours-message');
-            
-            // Modal Elements
             const timeEntryModal = document.getElementById('time-entry-modal');
             const closeEntryModalBtn = document.getElementById('close-entry-modal-btn');
             const modalTitle = document.getElementById('modal-title');
@@ -258,8 +255,6 @@
             const additionalHoursContainer = document.getElementById('additional-hours-container');
             const hourTypeButtons = document.querySelectorAll('.hour-type-btn');
             const saveBtn = document.getElementById('save-btn');
-            
-            // Other elements
             const settingsBtn = document.getElementById('settings-btn');
             const closeSettingsModalBtn = document.getElementById('close-settings-modal-btn');
             const settingsModal = document.getElementById('settings-modal');
@@ -276,6 +271,7 @@
             const turnInHoursBtn = document.getElementById('turn-in-hours-btn');
             const timesheetModal = document.getElementById('timesheet-modal');
             const closeTimesheetModalBtn = document.getElementById('close-timesheet-modal-btn');
+            const closeTimesheetBtnBottom = document.getElementById('close-timesheet-btn-bottom');
             const timesheetOutput = document.getElementById('timesheet-output');
             const copyTimesheetBtn = document.getElementById('copy-timesheet-btn');
             const clockInBtn = document.getElementById('clock-in-btn');
@@ -295,7 +291,7 @@
             // --- STATE MANAGEMENT ---
             let currentDate = new Date();
             let selectedDate = null;
-            let editingSessionIndex = -1; // -1 new session, 'additional' for additional, >= 0 for session index
+            let editingSessionIndex = -1;
             let timeData = {};
             let settings = { theme: 'Sakura', background: 'gradient', payPeriod: 14 };
             let modalHourType = 'CORE';
@@ -306,7 +302,16 @@
             
             // --- HELPER FUNCTIONS ---
             function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
-            function getRoundedTime(date) { const m = date.getHours() * 60 + date.getMinutes(); const r = Math.round(m / 15) * 15; let h = Math.floor(r / 60); if (h >= 24) h = 0; return `${String(h).padStart(2, '0')}:${String(r % 60).padStart(2, '0')}`; }
+            function getExactTime(date) { return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; }
+            function roundTimeString(timeString) {
+                if (!timeString) return '';
+                const [hours, minutes] = timeString.split(':').map(Number);
+                const totalMinutes = hours * 60 + minutes;
+                const roundedMinutes = Math.round(totalMinutes / 15) * 15;
+                const newHours = Math.floor(roundedMinutes / 60) % 24;
+                const newMinutes = roundedMinutes % 60;
+                return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+            }
             function getDayWithSuffix(d) {
                 const day = d.getDate();
                 if (day > 3 && day < 21) return day + 'th';
@@ -358,12 +363,8 @@
                         selectedDate = dateStr;
                         updateDisplayPanel(dateStr);
                         renderCalendar();
-
-                        if (calculateHours(dateStr) > 0) {
-                            openSidePanel();
-                        } else {
-                            openTimeEntryModal(dateStr, -1);
-                        }
+                        if (calculateHours(dateStr) > 0) { openSidePanel(); } 
+                        else { openTimeEntryModal(dateStr, -1); }
                     });
                     calendarGrid.appendChild(dayEl);
                 }
@@ -374,25 +375,17 @@
                 const entry = timeData[dateStr] || { sessions: [], additional: 0 };
                 const dateObj = new Date(`${dateStr}T00:00:00Z`);
                 displaySelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                
                 sessionsDisplayArea.innerHTML = '';
                 additionalHoursDisplayArea.innerHTML = '';
-                
                 const hasHours = calculateHours(dateStr) > 0;
                 noHoursMessage.classList.toggle('hidden', hasHours);
-                sessionsDisplayArea.classList.toggle('hidden', !hasHours);
-                additionalHoursDisplayArea.classList.toggle('hidden', !hasHours);
                 addSessionBtn.classList.toggle('hidden', !dateStr);
-
-
                 if (hasHours) {
                     entry.sessions.forEach((session, index) => {
                         const sEl = document.createElement('div');
-                        sEl.className = 'p-3 rounded-lg flex items-center gap-2';
-                        sEl.style.backgroundColor = 'var(--bg-primary)';
+                        sEl.className = 'p-3 rounded-lg flex items-center gap-2'; sEl.style.backgroundColor = 'var(--bg-primary)';
                         sEl.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-center text-sm"><span>${session.in || '--:--'} - ${session.out || '...'}</span><span class="font-bold">${session.type || 'N/A'}</span></div></div>`;
-                        const ctrls = document.createElement('div');
-                        ctrls.className = 'flex items-center';
+                        const ctrls = document.createElement('div'); ctrls.className = 'flex items-center';
                         const editBtn = document.createElement('button');
                         editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
                         editBtn.className = 'p-1 hover:text-blue-500'; editBtn.title = "Edit Session";
@@ -405,10 +398,8 @@
                         sEl.appendChild(ctrls);
                         sessionsDisplayArea.appendChild(sEl);
                     });
-
                     const addEl = document.createElement('div');
-                    addEl.className = "flex justify-between items-center p-3 rounded-lg";
-                    addEl.style.backgroundColor = 'var(--bg-primary)';
+                    addEl.className = "flex justify-between items-center p-3 rounded-lg"; addEl.style.backgroundColor = 'var(--bg-primary)';
                     addEl.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-center text-sm"><span>Additional Hours:</span><span class="font-bold">${(entry.additional || 0).toFixed(2)}h</span></div></div>`;
                     const editAddBtn = document.createElement('button');
                     editAddBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
@@ -431,7 +422,6 @@
                 timeInContainer.classList.toggle('hidden', isAdd);
                 timeOutContainer.classList.toggle('hidden', isAdd);
                 hourTypeContainer.classList.toggle('hidden', isAdd);
-
                 if (isAdd) { modalTitle.textContent = "Edit Additional Hours"; additionalHoursInput.value = entry.additional || ''; } 
                 else if (sessionIndex >= 0 && entry.sessions[sessionIndex]) { const s = entry.sessions[sessionIndex]; modalTitle.textContent = "Edit Session"; timeInInput.value = s.in || ''; timeOutInput.value = s.out || ''; modalHourType = s.type || 'CORE'; } 
                 else { modalTitle.textContent = "Add New Session"; timeInInput.value = ''; timeOutInput.value = ''; additionalHoursInput.value = ''; modalHourType = 'CORE'; }
@@ -465,11 +455,7 @@
                 return dur + (e.additional || 0);
             }
 
-            function updateAllUI() {
-                renderCalendar();
-                updateSummaries();
-                if(selectedDate) updateDisplayPanel(selectedDate);
-            }
+            function updateAllUI() { renderCalendar(); updateSummaries(); if(selectedDate) updateDisplayPanel(selectedDate); }
 
             function updateSummaries() {
                 const todayStr = getDateString(new Date());
@@ -484,14 +470,13 @@
             }
 
             function generateAndShowTimesheet() {
+                showNotification("Times have been rounded to the nearest quarter hour.");
                 const today = new Date();
                 const periodStartDate = new Date();
                 periodStartDate.setDate(today.getDate() - (settings.payPeriod - 1));
-                
                 let timesheetLines = [];
                 let acapTotal = 0;
                 let coreTotal = 0;
-                
                 for (let d = new Date(periodStartDate); d <= today; d.setDate(d.getDate() + 1)) {
                     const dateStr = getDateString(d);
                     const entry = timeData[dateStr];
@@ -499,24 +484,21 @@
                     const month = d.toLocaleDateString('en-US', { month: 'short' });
                     const dayWithSuffix = getDayWithSuffix(d);
                     let baseLine = `${dayOfWeek} ${dayWithSuffix} - ${month}`;
-                    
                     if (entry && entry.sessions && entry.sessions.length > 0) {
                         entry.sessions.forEach(session => {
                             if(session.in && session.out) {
-                                const sessionHours = (new Date(`${dateStr}T${session.out}`) - new Date(`${dateStr}T${session.in}`)) / 3600000;
-                                
+                                const roundedIn = roundTimeString(session.in);
+                                const roundedOut = roundTimeString(session.out);
+                                const sessionHours = (new Date(`${dateStr}T${roundedOut}`) - new Date(`${dateStr}T${roundedIn}`)) / 3600000;
                                 if (sessionHours > 0) {
-                                    timesheetLines.push(`${baseLine} ${session.in} - ${session.out} ${sessionHours.toFixed(2)} ${session.type}`);
+                                    timesheetLines.push(`${baseLine} ${roundedIn} - ${roundedOut} ${sessionHours.toFixed(2)} ${session.type}`);
                                     if (session.type === 'ACAP') acapTotal += sessionHours;
                                     else coreTotal += sessionHours;
                                 }
                             }
                         });
-                    } else if (d.getDay() === 0 || d.getDay() === 6) {
-                        timesheetLines.push(`${baseLine} - Closed`);
-                    }
+                    } else if (d.getDay() === 0 || d.getDay() === 6) { timesheetLines.push(`${baseLine} - Closed`); }
                 }
-                
                 const summaryLines = [ '\nHere is the summary:\n', `ACAP total: ${acapTotal.toFixed(2)} hours`, `Core total: ${coreTotal.toFixed(2)} hours`, `\nTotal: ${(acapTotal + coreTotal).toFixed(2)} hours` ];
                 timesheetOutput.value = timesheetLines.join('\n') + summaryLines.join('\n');
                 timesheetModal.classList.add('active');
@@ -548,30 +530,27 @@
             clearDataBtn.addEventListener('click', clearAllData);
             hourTypeButtons.forEach(b => { b.addEventListener('click', () => { modalHourType = b.dataset.type; updateHourTypeSelectionUI(); }); });
             turnInHoursBtn.addEventListener('click', generateAndShowTimesheet);
-            
+            const closeSheet = () => timesheetModal.classList.remove('active');
+            closeTimesheetModalBtn.addEventListener('click', closeSheet);
+            closeTimesheetBtnBottom.addEventListener('click', closeSheet);
+            timesheetModal.addEventListener('click', (e) => { if (e.target === timesheetModal) closeSheet(); });
+
             clockInBtn.addEventListener('click', () => {
                 const now = new Date(); 
                 const todayStr = getDateString(now);
                 if (!timeData[todayStr]) timeData[todayStr] = { sessions: [], additional: 0 };
-                if (timeData[todayStr].sessions.find(s => s.in && !s.out)) {
-                    showNotification('You are already clocked in.');
-                    return;
-                }
-                const roundedTime = getRoundedTime(now);
-                timeData[todayStr].sessions.push({ in: roundedTime });
+                if (timeData[todayStr].sessions.find(s => s.in && !s.out)) { showNotification('You are already clocked in.'); return; }
+                const exactTime = getExactTime(now);
+                timeData[todayStr].sessions.push({ in: exactTime });
                 selectedDate = todayStr;
-                saveData();
-                updateAllUI();
-                showNotification(`Clocked in: ${roundedTime}`);
+                saveData(); updateAllUI();
+                showNotification(`Clocked in: ${exactTime}`);
                 openSidePanel();
             });
 
             clockOutBtn.addEventListener('click', () => {
                 const todayStr = getDateString(new Date());
-                if (!timeData[todayStr]?.sessions.find(s => s.in && !s.out)) {
-                    showNotification('You are not clocked in.');
-                    return;
-                }
+                if (!timeData[todayStr]?.sessions.find(s => s.in && !s.out)) { showNotification('You are not clocked in.'); return; }
                 clockOutTypeModal.classList.add('active');
             });
             
@@ -580,14 +559,13 @@
                 const todayStr = getDateString(now);
                 const openSessionIdx = timeData[todayStr].sessions.findIndex(s => s.in && !s.out);
                 if (openSessionIdx > -1) {
-                    const roundedTime = getRoundedTime(now);
-                    timeData[todayStr].sessions[openSessionIdx].out = roundedTime;
+                    const exactTime = getExactTime(now);
+                    timeData[todayStr].sessions[openSessionIdx].out = exactTime;
                     timeData[todayStr].sessions[openSessionIdx].type = type;
                     selectedDate = todayStr;
-                    saveData();
-                    updateAllUI();
+                    saveData(); updateAllUI();
                     clockOutTypeModal.classList.remove('active');
-                    showNotification(`Clocked out: ${roundedTime}`);
+                    showNotification(`Clocked out: ${exactTime}`);
                     openSidePanel();
                 }
             }
@@ -605,8 +583,6 @@
                 payPeriodSelect.value = settings.payPeriod;
                 selectedDate = getDateString(new Date());
                 updateAllUI();
-                setupTimeInputListeners(timeInInput);
-                setupTimeInputListeners(timeOutInput);
             }
 
             init();
