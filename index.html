@@ -15,6 +15,7 @@
             --text-secondary: #7A7A7A;
             --accent-primary: #86A8E7;
             --accent-secondary: #91EAE4;
+            --border-default: #D9D9D9;
             --shadow-color: rgba(0, 0, 0, 0.1);
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.5s ease, color 0.5s ease; }
@@ -80,7 +81,7 @@
                         <h2 id="month-year-header" class="text-xl font-bold"></h2>
                         <button id="next-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&gt;</button>
                     </div>
-                    <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center"></div>
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center max-w-md mx-auto"></div>
                 </div>
 
                 <div class="card p-6">
@@ -165,26 +166,6 @@
                 </select></div>
                 <div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14">Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div>
                 <button id="clear-data-btn" class="btn btn-danger w-full py-2">Clear All Data</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="stats-modal" class="modal-backdrop">
-        <div class="modal-content card w-full max-w-3xl m-4 max-h-[90vh] overflow-y-auto p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">Historical Stats</h2>
-                <button id="close-stats-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div class="lg:col-span-2">
-                    <canvas id="weekly-hours-chart"></canvas>
-                </div>
-                <div>
-                    <canvas id="type-breakdown-chart"></canvas>
-                </div>
-                 <div id="stats-no-data-message" class="text-center text-secondary py-8 hidden">
-                    <p>Log some more hours to see your stats here.</p>
-                </div>
             </div>
         </div>
     </div>
@@ -293,7 +274,7 @@
             let selectedDate = null;
             let editingSessionIndex = -1;
             let timeData = {};
-            let settings = { theme: 'Sakura', background: 'gradient', payPeriod: 14 };
+            let settings = { theme: 'Sakura', background: 'none', payPeriod: 14 };
             let modalHourType = 'CORE';
             let onConfirmCallback = null;
             let notificationTimeout;
@@ -302,6 +283,16 @@
             
             // --- HELPER FUNCTIONS ---
             function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+            function getExactTime(date) { return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; }
+            function roundTimeString(timeString) {
+                if (!timeString) return '';
+                const [hours, minutes] = timeString.split(':').map(Number);
+                const totalMinutes = hours * 60 + minutes;
+                const roundedMinutes = Math.round(totalMinutes / 15) * 15;
+                const newHours = Math.floor(roundedMinutes / 60) % 24;
+                const newMinutes = roundedMinutes % 60;
+                return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+            }
             function getDayWithSuffix(d) {
                 const day = d.getDate();
                 if (day > 3 && day < 21) return day + 'th';
@@ -315,9 +306,9 @@
 
             // --- THEME & BACKGROUND MANAGEMENT ---
             const themes = {
-                default: { '--bg-primary': '#F3EAD3', '--bg-secondary': '#FFFFFF', '--text-primary': '#4A4A4A', '--text-secondary': '#7A7A7A', '--accent-primary': '#86A8E7', '--accent-secondary': '#91EAE4' },
-                'Oceanic': { '--bg-primary': '#0B2027', '--bg-secondary': '#12343B', '--text-primary': '#E0FBFC', '--text-secondary': '#96C5D9', '--accent-primary': '#3EF7B2', '--accent-secondary': '#00B4D8' },
-                'Sakura': { '--bg-primary': '#F9F1F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#5B4242', '--text-secondary': '#8D6E6E', '--accent-primary': '#FFB7C5', '--accent-secondary': '#E6A4B4' },
+                 default: { '--bg-primary': '#F3EAD3', '--bg-secondary': '#FFFFFF', '--text-primary': '#4A4A4A', '--text-secondary': '#7A7A7A', '--accent-primary': '#86A8E7', '--accent-secondary': '#91EAE4', '--border-default': '#D9D9D9' },
+                'Oceanic': { '--bg-primary': '#0B2027', '--bg-secondary': '#12343B', '--text-primary': '#E0FBFC', '--text-secondary': '#96C5D9', '--accent-primary': '#3EF7B2', '--accent-secondary': '#00B4D8', '--border-default': 'rgba(150, 197, 217, 0.4)' },
+                'Sakura': { '--bg-primary': '#F9F1F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#5B4242', '--text-secondary': '#8D6E6E', '--accent-primary': '#E6A4B4', '--accent-secondary': '#FFB7C5', '--border-default': '#E6DEDE' },
             };
             function applyTheme(themeName) { const t = themes[themeName]; if (!t) return; Object.keys(t).forEach(k => document.documentElement.style.setProperty(k, t[k])); settings.theme = themeName; saveSettings(); }
             function populateThemeSelector() { Object.keys(themes).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; themeSelect.appendChild(o); }); }
@@ -343,9 +334,17 @@
                     const dayEl = document.createElement('button');
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     dayEl.textContent = day;
-                    dayEl.className = 'p-2 rounded-lg transition-all duration-200 aspect-square flex items-center justify-center';
+                    dayEl.className = 'p-2 rounded-lg transition-all duration-200 aspect-square flex items-center justify-center border';
+                    
+                    if (selectedDate === dateStr) {
+                        dayEl.classList.add('border-2');
+                        dayEl.style.borderColor = 'var(--accent-primary)';
+                    } else {
+                        dayEl.style.borderColor = 'var(--border-default)';
+                    }
+
                     if (timeData[dateStr] && calculateHours(dateStr) > 0) { dayEl.classList.add('font-bold'); dayEl.style.backgroundColor = 'var(--accent-secondary)'; dayEl.style.color = 'white'; }
-                    if (selectedDate === dateStr) { dayEl.classList.add('ring-2', 'ring-offset-2'); dayEl.style.ringColor = 'var(--accent-primary)'; }
+                    
                     const today = new Date();
                     if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) { dayEl.classList.add('font-extrabold'); }
                     
@@ -457,6 +456,41 @@
                     periodHours += calculateHours(getDateString(date));
                 }
                 summaryPayPeriod.textContent = `${periodHours.toFixed(2)}h`;
+            }
+            
+            function generateAndShowTimesheet() {
+                showNotification("Times have been rounded to the nearest quarter hour.");
+                const today = new Date();
+                const periodStartDate = new Date();
+                periodStartDate.setDate(today.getDate() - (settings.payPeriod - 1));
+                let timesheetLines = [];
+                let acapTotal = 0;
+                let coreTotal = 0;
+                for (let d = new Date(periodStartDate); d <= today; d.setDate(d.getDate() + 1)) {
+                    const dateStr = getDateString(d);
+                    const entry = timeData[dateStr];
+                    const dayOfWeek = d.toLocaleDateString('en-US', { weekday: 'short' });
+                    const month = d.toLocaleDateString('en-US', { month: 'short' });
+                    const dayWithSuffix = getDayWithSuffix(d);
+                    let baseLine = `${dayOfWeek} ${dayWithSuffix} - ${month}`;
+                    if (entry && entry.sessions && entry.sessions.length > 0) {
+                        entry.sessions.forEach(session => {
+                            if(session.in && session.out) {
+                                const roundedIn = roundTimeString(session.in);
+                                const roundedOut = roundTimeString(session.out);
+                                const sessionHours = (new Date(`${dateStr}T${roundedOut}`) - new Date(`${dateStr}T${roundedIn}`)) / 3600000;
+                                if (sessionHours > 0) {
+                                    timesheetLines.push(`${baseLine} ${roundedIn} - ${roundedOut} ${sessionHours.toFixed(2)} ${session.type}`);
+                                    if (session.type === 'ACAP') acapTotal += sessionHours;
+                                    else coreTotal += sessionHours;
+                                }
+                            }
+                        });
+                    } else if (d.getDay() === 0 || d.getDay() === 6) { timesheetLines.push(`${baseLine} - Closed`); }
+                }
+                const summaryLines = [ '\nHere is the summary:\n', `ACAP total: ${acapTotal.toFixed(2)} hours`, `Core total: ${coreTotal.toFixed(2)} hours`, `\nTotal: ${(acapTotal + coreTotal).toFixed(2)} hours` ];
+                timesheetOutput.value = timesheetLines.join('\n') + summaryLines.join('\n');
+                timesheetModal.classList.add('active');
             }
             
             function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
