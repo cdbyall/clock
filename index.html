@@ -585,6 +585,18 @@
             clearDataBtn.addEventListener('click', clearAllData);
             hourTypeButtons.forEach(b => { b.addEventListener('click', () => { modalHourType = b.dataset.type; updateHourTypeSelectionUI(); }); });
             turnInHoursBtn.addEventListener('click', generateAndShowTimesheet);
+            
+            copyTimesheetBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(timesheetOutput.value)
+                    .then(() => {
+                        showNotification('Timesheet copied to clipboard!');
+                    })
+                    .catch(err => {
+                        console.error('Could not copy text: ', err);
+                        showNotification('Failed to copy. Please copy manually.');
+                    });
+            });
+
             const closeSheet = () => timesheetModal.classList.remove('active');
             closeTimesheetModalBtn.addEventListener('click', closeSheet);
             closeTimesheetBtnBottom.addEventListener('click', closeSheet);
