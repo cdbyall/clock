@@ -34,10 +34,44 @@
         .modal-backdrop.active { opacity: 1; pointer-events: auto; }
         .modal-content { transform: scale(0.7); opacity: 0; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease-out; }
         .modal-backdrop.active .modal-content { transform: scale(1); opacity: 1; }
-        #achievement-toast { position: fixed; bottom: 1.25rem; left: 1.25rem; z-index: 110; opacity: 0; transform: translateY(2rem); transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); pointer-events: none; }
-        #achievement-toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-        .achievement-item { opacity: 0.5; filter: grayscale(80%); transition: all 0.3s ease; }
-        .achievement-item.unlocked { opacity: 1; filter: grayscale(0%); }
+
+        /* --- Side Panel --- */
+        #side-panel-container { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 40; pointer-events: none; }
+        #side-panel-backdrop { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.3s ease-in-out; }
+        #side-panel-content { position: absolute; top: 0; right: 0; height: 100%; width: 90%; max-width: 400px; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+        #side-panel-container.active { pointer-events: auto; }
+        #side-panel-container.active #side-panel-backdrop { opacity: 1; }
+        #side-panel-container.active #side-panel-content { transform: translateX(0); }
+
+        /* --- Animated Backgrounds --- */
+        #background-animation-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; overflow: hidden; }
+        .animated-gradient { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        /* --- Achievement Notification --- */
+        #achievement-toast {
+            position: fixed;
+            top: 1.25rem;
+            left: 50%;
+            transform: translate(-50%, -150%);
+            z-index: 101;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px -5px var(--shadow-color);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        #achievement-toast.show {
+            transform: translate(-50%, 0);
+        }
+        #achievement-icon { font-size: 1.75rem; }
+        #achievement-details h4 { font-weight: 700; }
+        #achievement-details p { font-size: 0.875rem; opacity: 0.9; }
+
     </style>
 </head>
 <body class="antialiased">
@@ -46,322 +80,814 @@
 
     <div class="min-h-screen p-4 sm:p-6 lg:p-8">
         <div class="max-w-5xl mx-auto">
+            
             <header class="flex justify-between items-center mb-8">
                 <h1 class="text-3xl font-bold tracking-tight text-primary">Hours For Shelby.</h1>
                 <button id="settings-btn" class="p-3 rounded-full hover:bg-black/10 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 </button>
             </header>
+
             <div class="flex justify-center items-center gap-4 sm:gap-8 mb-8">
-                <button id="clock-in-btn" class="btn btn-primary flex-1 max-w-xs py-4 px-6 text-xl font-bold shadow-lg flex items-center justify-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sunrise"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="2" x2="12" y2="9"></line><line x1="4.22" y1="10.22" x2="5.64" y2="8.8"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="8.8" x2="19.78" y2="10.22"></line><line x1="12" y1="23" x2="12" y2="18"></line><polyline points="16 5 12 9 8 5"></polyline></svg><span>Clock In</span></button>
-                <button id="clock-out-btn" class="btn btn-secondary flex-1 max-w-xs py-4 px-6 text-xl font-bold shadow-lg flex items-center justify-center gap-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sunset"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="9" x2="12" y2="2"></line><line x1="4.22" y1="10.22" x2="5.64" y2="8.8"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="8.8" x2="19.78" y2="10.22"></line><line x1="12" y1="23" x2="12" y2="18"></line><polyline points="16 5 12 9 8 5"></polyline></svg><span>Clock Out</span></button>
+                <button id="clock-in-btn" class="btn btn-primary flex-1 max-w-xs py-4 px-6 text-xl font-bold shadow-lg flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sunrise"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="2" x2="12" y2="9"></line><line x1="4.22" y1="10.22" x2="5.64" y2="8.8"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="8.8" x2="19.78" y2="10.22"></line><line x1="12" y1="23" x2="12" y2="18"></line><polyline points="16 5 12 9 8 5"></polyline></svg>
+                    <span>Clock In</span>
+                </button>
+                <button id="clock-out-btn" class="btn btn-secondary flex-1 max-w-xs py-4 px-6 text-xl font-bold shadow-lg flex items-center justify-center gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-sunset"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="9" x2="12" y2="2"></line><line x1="4.22" y1="10.22" x2="5.64" y2="8.8"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="8.8" x2="19.78" y2="10.22"></line><line x1="12" y1="23" x2="12" y2="18"></line><polyline points="16 5 12 9 8 5"></polyline></svg>
+                    <span>Clock Out</span>
+                </button>
             </div>
+
             <main class="space-y-8">
                 <div id="calendar-card" class="card p-6">
-                    <div class="flex justify-between items-center mb-4"><button id="prev-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&lt;</button><h2 id="month-year-header" class="text-xl font-bold"></h2><button id="next-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&gt;</button></div>
+                    <div class="flex justify-between items-center mb-4">
+                        <button id="prev-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&lt;</button>
+                        <h2 id="month-year-header" class="text-xl font-bold"></h2>
+                        <button id="next-month-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&gt;</button>
+                    </div>
                     <div id="calendar-grid" class="grid grid-cols-7 gap-2 text-center max-w-md mx-auto"></div>
                 </div>
+
                 <div class="card p-6">
                     <h3 class="text-lg font-semibold mb-4">Summary</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                        <div><p class="text-sm text-secondary">Today</p><p id="summary-today" class="text-2xl font-bold">0.00h</p></div>
-                        <div><p class="text-sm text-secondary">Pay Period</p><p id="summary-pay-period" class="text-2xl font-bold">0.00h</p></div>
-                        <div><p class="text-sm text-secondary">Total</p><p id="summary-total" class="text-2xl font-bold">0.00h</p></div>
+                        <div>
+                            <p class="text-sm text-secondary">Today</p>
+                            <p id="summary-today" class="text-2xl font-bold">0.00h</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-secondary">Pay Period</p>
+                            <p id="summary-pay-period" class="text-2xl font-bold">0.00h</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-secondary">Total</p>
+                            <p id="summary-total" class="text-2xl font-bold">0.00h</p>
+                        </div>
                     </div>
                 </div>
-                <div class="flex justify-center gap-4"><button id="turn-in-hours-btn" class="btn btn-primary font-bold py-3 px-8 text-lg">Turn In Hours</button><button id="view-stats-btn" class="btn btn-secondary font-bold py-3 px-8 text-lg">View Stats</button></div>
+                <div class="flex justify-center gap-4">
+                     <button id="turn-in-hours-btn" class="btn btn-primary font-bold py-3 px-8 text-lg">Turn In Hours</button>
+                     <button id="view-stats-btn" class="btn btn-secondary font-bold py-3 px-8 text-lg">View Stats</button>
+                </div>
             </main>
         </div>
     </div>
-    <div id="side-panel-container"><div id="side-panel-backdrop"></div><div id="side-panel-content" class="card !rounded-l-3xl !rounded-r-none p-6 flex flex-col"><div class="flex justify-between items-center mb-2"><h3 class="text-lg font-semibold">Selected Day</h3><button id="close-side-panel-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button></div><p id="display-selected-date" class="text-sm text-secondary mb-6">Select a date</p><div class="flex-grow overflow-y-auto pr-2"><button id="add-session-btn" title="Add New Session" class="w-full btn btn-secondary mb-4">Add Session</button><div id="sessions-display-area" class="space-y-3 mb-4"></div><div id="additional-hours-display-area" class="space-y-2 mb-4"></div></div><hr class="my-4 border-dashed"><div class="flex justify-between items-center"><span class="font-bold text-lg">Total for Day:</span><span id="display-day-total" class="font-bold text-xl" style="color: var(--accent-primary);">0.00h</span></div><p id="no-hours-message" class="text-center text-secondary py-8 hidden">No hours logged for this day.</p></div></div>
-    <div id="time-entry-modal" class="modal-backdrop"><div class="modal-content card w-full max-w-md m-4 p-6"><div class="flex justify-between items-center mb-4"><h3 id="modal-title" class="text-lg font-semibold">Log Hours</h3><button id="close-entry-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button></div><p id="modal-selected-date" class="text-sm text-secondary mb-6"></p><div class="space-y-6"><div id="time-in-container"><label class="text-sm font-medium">Time In</label><input id="time-in" type="time" class="input-field w-full mt-1"></div><div id="time-out-container"><label class="text-sm font-medium">Time Out</label><input id="time-out" type="time" class="input-field w-full mt-1"></div><div id="hour-type-container"><label class="text-sm font-medium mb-2 block">Type</label><div class="grid grid-cols-2 gap-2"><button data-type="CORE" class="hour-type-btn btn font-semibold py-2">CORE</button><button data-type="ACAP" class="hour-type-btn btn font-semibold py-2">ACAP</button></div></div><div id="additional-hours-container"><label class="text-sm font-medium">Additional Hours (optional)</label><input id="additional-hours" type="number" step="0.01" placeholder="e.g., 1.5" class="input-field w-full mt-1"></div><button id="save-btn" class="btn btn-primary w-full py-3 font-bold !mt-8">Save Hours</button></div></div></div>
-    <div id="settings-modal" class="modal-backdrop"><div class="modal-content card w-full max-w-md m-4 max-h-[90vh] overflow-y-auto p-6"><div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">Settings</h2><button id="close-settings-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button></div><div class="space-y-6"><div><label for="theme-select" class="block text-sm font-medium mb-1">Color Theme</label><select id="theme-select" class="input-field w-full"></select></div><div><label for="background-select" class="block text-sm font-medium mb-1">Animated Background</label><select id="background-select" class="input-field w-full"><option value="none">None</option><option value="gradient">Animated Gradient</option></select></div><div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14" selected>Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div><button id="view-achievements-btn" class="btn btn-secondary w-full py-2">View Achievements</button><button id="clear-data-btn" class="btn btn-danger w-full py-2">Clear All Data</button></div></div></div>
-    <div id="stats-modal" class="modal-backdrop"><div class="modal-content card w-full max-w-3xl m-4 max-h-[90vh] overflow-y-auto p-6"><div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">Historical Stats</h2><button id="close-stats-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button></div><div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center"><div class="md:col-span-2"><canvas id="weekly-hours-chart"></canvas></div><div><canvas id="type-breakdown-chart"></canvas></div><div id="stats-no-data-message" class="text-center text-secondary py-8 hidden"><p>Log some more hours to see your stats here.</p></div></div></div></div>
-    <div id="confirm-modal" class="modal-backdrop"><div class="modal-content card w-full max-w-sm m-4 p-6 text-center"><h3 id="confirm-message" class="text-lg font-medium mb-6">Are you sure?</h3><div class="flex justify-center gap-4"><button id="confirm-cancel-btn" class="btn btn-secondary w-full py-2">Cancel</button><button id="confirm-ok-btn" class="btn btn-danger w-full py-2">Confirm</button></div></div></div>
-    <div id="clock-out-type-modal" class="modal-backdrop"><div class="modal-content card w-full max-w-sm m-4 p-6 text-center"><h3 class="text-lg font-medium mb-6">What type of hours?</h3><div class="flex flex-col gap-4"><button id="confirm-acap-btn" class="btn btn-primary w-full py-3 font-bold">ACAP</button><button id="confirm-core-btn" class="btn btn-primary w-full py-3 font-bold">CORE</button><button id="clock-out-cancel-btn" class="btn btn-secondary w-full py-2 mt-2">Cancel</button></div></div></div>
-    <div id="timesheet-modal" class="modal-backdrop"><div class="modal-content card w-full max-w-lg m-4 p-6"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold">Generated Timesheet</h3><button id="close-timesheet-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button></div><textarea id="timesheet-output" readonly class="w-full h-64 p-2 border rounded-lg input-field resize-none"></textarea><div class="flex flex-col gap-4 mt-4"><button id="copy-timesheet-btn" class="btn btn-primary w-full py-2">Copy Timesheet</button><button id="close-timesheet-btn-bottom" class="btn btn-secondary w-full py-2">Close Window</button></div></div></div>
-    <div id="achievements-modal" class="modal-backdrop"><div class="modal-content card w-full max-w-lg m-4 p-6 max-h-[90vh] flex flex-col"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold">Achievements</h3><button id="close-achievements-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button></div><div id="achievements-list" class="flex-grow overflow-y-auto pr-2 space-y-3"></div></div></div>
-    <div id="notification-toast" class="card py-3 px-5"><p id="notification-message"></p></div>
-    <div id="achievement-toast" class="card p-4 flex items-center gap-4 max-w-xs w-full"><div id="achievement-icon" class="text-3xl">🏆</div><div><p id="achievement-title" class="font-bold text-primary"></p><p id="achievement-description" class="text-sm text-secondary"></p></div></div>
-    <audio id="achievement-chime" src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTSEUAAAABAAAAmGFjdXN0aWNhX2lkX2FjdXN0aWNhX2Rvd19fVVNlcnNfX2pvcmRhbl9fRG93bmxvYWRzX19maW5hbF9wcm9qZWN0X3dlYnNpdGVfX3NvdW5kX19ub3RpZmljYXRpb25fYmVsbC5tcDMAAABoAAAAANIAAAAAATEwMCoAYeZNTEsAAAAAAAAAAADYAZCGzZ4AAAAAAAAAAAAAADYAZCGsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//vAxADgBwHABAAAFpveWFsdHktZnJlZS1zb3VuZC1jcmVhdG9yLWFjdXN0aWNhaWQuY29tLy9zYW1wbGVzLzM3NjgwOS1ub3RpZmljYXRpb24tYmVsbAANIAAAAAATEwMCoAYeZNTEsAAAAAAAAAAADYAZCGzZ4AAAAAAAAAAAAAADYAZCGsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//vAxAsAKTwjAAAAARAAAEZmaW5hbF9wcm9qZWN0X3dlYnNpdGVfX3NvdW5kX19ub3RpZmljYXRpb25fYmVsbC5tcDMAAAAZZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZm_//vAxA4BKYeLAAAEAAAEFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//vAxBYAIjYfAAAAARAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVXlVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-pivVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-DáAAAAARAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVXlVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-D/s/+z/7//s/+z/7P/s//oP/oP+///s/+///+g/+g/8AAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-D/s/+z/3V/9n/3P/pVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-gA//gP/g/83+///s/+z/+v/9//2AAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-D/s/+z/oAAP/gAA/+/9gAD/wD/s/+z/3V/9n/3P/pVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//vAxC4BKYeLAAAAQAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//vAxBYAIjYfAAAAARAAAFVVVVVV-D/s/+z/3V/9n/3P/pVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//vAxC4AihofAAAAQAAA//vAxC4BKYeLAAAAQAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//vAxBYAIjYfAAAAARAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVXlVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-g'-'></audio>
+
+    <div id="side-panel-container">
+        <div id="side-panel-backdrop"></div>
+        <div id="side-panel-content" class="card !rounded-l-3xl !rounded-r-none p-6 flex flex-col">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-lg font-semibold">Selected Day</h3>
+                <button id="close-side-panel-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+            </div>
+            <p id="display-selected-date" class="text-sm text-secondary mb-6">Select a date</p>
+
+            <div class="flex-grow overflow-y-auto pr-2">
+                <button id="add-session-btn" title="Add New Session" class="w-full btn btn-secondary mb-4">
+                    Add Session
+                </button>
+                <div id="sessions-display-area" class="space-y-3 mb-4">
+                </div>
+                <div id="additional-hours-display-area" class="space-y-2 mb-4">
+                  </div>
+            </div>
+
+            <hr class="my-4 border-dashed">
+            <div class="flex justify-between items-center">
+                <span class="font-bold text-lg">Total for Day:</span>
+                <span id="display-day-total" class="font-bold text-xl" style="color: var(--accent-primary);">0.00h</span>
+            </div>
+            <p id="no-hours-message" class="text-center text-secondary py-8 hidden">No hours logged for this day.</p>
+        </div>
+    </div>
+
+
+    <div id="time-entry-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-md m-4 p-6">
+             <div class="flex justify-between items-center mb-4">
+                 <h3 id="modal-title" class="text-lg font-semibold">Log Hours</h3>
+                 <button id="close-entry-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+             </div>
+            <p id="modal-selected-date" class="text-sm text-secondary mb-6"></p>
+            <div class="space-y-6">
+                <div id="time-in-container"> <label class="text-sm font-medium">Time In</label> <input id="time-in" type="time" class="input-field w-full mt-1"> </div>
+                <div id="time-out-container"> <label class="text-sm font-medium">Time Out</label> <input id="time-out" type="time" class="input-field w-full mt-1"> </div>
+                <div id="hour-type-container"> <label class="text-sm font-medium mb-2 block">Type</label> <div class="grid grid-cols-2 gap-2"> <button data-type="CORE" class="hour-type-btn btn font-semibold py-2">CORE</button> <button data-type="ACAP" class="hour-type-btn btn font-semibold py-2">ACAP</button> </div> </div>
+                <div id="additional-hours-container"> <label class="text-sm font-medium">Additional Hours (optional)</label> <input id="additional-hours" type="number" step="0.01" placeholder="e.g., 1.5" class="input-field w-full mt-1"> </div>
+                <button id="save-btn" class="btn btn-primary w-full py-3 font-bold !mt-8">Save Hours</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-md m-4 max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex justify-between items-center mb-6"> <h2 class="text-2xl font-bold">Settings</h2> <button id="close-settings-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button> </div>
+            <div class="space-y-6">
+                <div><label for="theme-select" class="block text-sm font-medium mb-1">Color Theme</label><select id="theme-select" class="input-field w-full"></select></div>
+                <div><label for="background-select" class="block text-sm font-medium mb-1">Animated Background</label><select id="background-select" class="input-field w-full">
+                    <option value="none">None</option>
+                    <option value="gradient">Animated Gradient</option>
+                </select></div>
+                <div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14" selected>Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div>
+                <button id="clear-data-btn" class="btn btn-danger w-full py-2">Clear All Data</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="stats-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-3xl m-4 max-h-[90vh] overflow-y-auto p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Historical Stats</h2>
+                <button id="close-stats-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="md:col-span-2">
+                    <canvas id="weekly-hours-chart"></canvas>
+                </div>
+                <div>
+                    <canvas id="type-breakdown-chart"></canvas>
+                </div>
+                 <div id="stats-no-data-message" class="text-center text-secondary py-8 hidden">
+                    <p>Log some more hours to see your stats here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-sm m-4 p-6 text-center">
+            <h3 id="confirm-message" class="text-lg font-medium mb-6">Are you sure?</h3>
+            <div class="flex justify-center gap-4"> <button id="confirm-cancel-btn" class="btn btn-secondary w-full py-2">Cancel</button> <button id="confirm-ok-btn" class="btn btn-danger w-full py-2">Confirm</button> </div>
+        </div>
+    </div>
+
+    <div id="clock-out-type-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-sm m-4 p-6 text-center">
+            <h3 class="text-lg font-medium mb-6">What type of hours?</h3>
+            <div class="flex flex-col gap-4">
+                <button id="confirm-acap-btn" class="btn btn-primary w-full py-3 font-bold">ACAP</button>
+                <button id="confirm-core-btn" class="btn btn-primary w-full py-3 font-bold">CORE</button>
+                <button id="clock-out-cancel-btn" class="btn btn-secondary w-full py-2 mt-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="timesheet-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-lg m-4 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Generated Timesheet</h3>
+                <button id="close-timesheet-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+            </div>
+            <textarea id="timesheet-output" readonly class="w-full h-64 p-2 border rounded-lg input-field resize-none"></textarea>
+            <div class="flex flex-col gap-4 mt-4">
+                <button id="copy-timesheet-btn" class="btn btn-primary w-full py-2">Copy Timesheet</button>
+                <button id="close-timesheet-btn-bottom" class="btn btn-secondary w-full py-2">Close Window</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-toast" class="card py-3 px-5"> <p id="notification-message"></p> </div>
+
+    <div id="achievement-toast">
+        <div id="achievement-icon">🏆</div>
+        <div id="achievement-details">
+            <h4 id="achievement-title"></h4>
+            <p id="achievement-desc"></p>
+        </div>
+    </div>
+    <audio id="achievement-chime" src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU3LjU2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAZAEFkb2JlIFBybyAxLjUgMjAwMy4wNS4yNwAAAAAAAAAAAAAAAAD/7wMASwAAAAwAAAADhQcBAIABAHAAAPigfAAAAAD6iKQCgIBAgIAAABHAAAHg//uAxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sNwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//sRwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEwAAAFlbWdAAAAAAAEAAQAAAAYAAA3+AAAAAAA="></audio>
+
 
     <script>
         window.onload = function() {
-            try {
-                // --- DOM ELEMENTS (safe to assume they exist) ---
-                const calendarGrid = document.getElementById('calendar-grid');
-                const monthYearHeader = document.getElementById('month-year-header');
-                const prevMonthBtn = document.getElementById('prev-month-btn');
-                const nextMonthBtn = document.getElementById('next-month-btn');
-                const summaryToday = document.getElementById('summary-today');
-                const summaryPayPeriod = document.getElementById('summary-pay-period');
-                const summaryTotal = document.getElementById('summary-total');
-                const sidePanelContainer = document.getElementById('side-panel-container');
-                const sidePanelBackdrop = document.getElementById('side-panel-backdrop');
-                const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
-                const displaySelectedDate = document.getElementById('display-selected-date');
-                const addSessionBtn = document.getElementById('add-session-btn');
-                const sessionsDisplayArea = document.getElementById('sessions-display-area');
-                const additionalHoursDisplayArea = document.getElementById('additional-hours-display-area');
-                const displayDayTotal = document.getElementById('display-day-total');
-                const noHoursMessage = document.getElementById('no-hours-message');
-                const timeEntryModal = document.getElementById('time-entry-modal');
-                const closeEntryModalBtn = document.getElementById('close-entry-modal-btn');
-                const modalTitle = document.getElementById('modal-title');
-                const modalSelectedDate = document.getElementById('modal-selected-date');
-                const timeInInput = document.getElementById('time-in');
-                const timeOutInput = document.getElementById('time-out');
-                const timeInContainer = document.getElementById('time-in-container');
-                const timeOutContainer = document.getElementById('time-out-container');
-                const hourTypeContainer = document.getElementById('hour-type-container');
-                const additionalHoursInput = document.getElementById('additional-hours');
-                const additionalHoursContainer = document.getElementById('additional-hours-container');
-                const hourTypeButtons = document.querySelectorAll('.hour-type-btn');
-                const saveBtn = document.getElementById('save-btn');
-                const settingsBtn = document.getElementById('settings-btn');
-                const closeSettingsModalBtn = document.getElementById('close-settings-modal-btn');
-                const settingsModal = document.getElementById('settings-modal');
-                const themeSelect = document.getElementById('theme-select');
-                const backgroundSelect = document.getElementById('background-select');
-                const payPeriodSelect = document.getElementById('pay-period-select');
-                const clearDataBtn = document.getElementById('clear-data-btn');
-                const confirmModal = document.getElementById('confirm-modal');
-                const confirmMessage = document.getElementById('confirm-message');
-                const confirmOkBtn = document.getElementById('confirm-ok-btn');
-                const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
-                const notificationToast = document.getElementById('notification-toast');
-                const notificationMessage = document.getElementById('notification-message');
-                const turnInHoursBtn = document.getElementById('turn-in-hours-btn');
-                const timesheetModal = document.getElementById('timesheet-modal');
-                const closeTimesheetModalBtn = document.getElementById('close-timesheet-modal-btn');
-                const closeTimesheetBtnBottom = document.getElementById('close-timesheet-btn-bottom');
-                const timesheetOutput = document.getElementById('timesheet-output');
-                const copyTimesheetBtn = document.getElementById('copy-timesheet-btn');
-                const clockInBtn = document.getElementById('clock-in-btn');
-                const clockOutBtn = document.getElementById('clock-out-btn');
-                const clockOutTypeModal = document.getElementById('clock-out-type-modal');
-                const confirmAcapBtn = document.getElementById('confirm-acap-btn');
-                const confirmCoreBtn = document.getElementById('confirm-core-btn');
-                const clockOutCancelBtn = document.getElementById('clock-out-cancel-btn');
-                const backgroundContainer = document.getElementById('background-animation-container');
-                const viewStatsBtn = document.getElementById('view-stats-btn');
-                const statsModal = document.getElementById('stats-modal');
-                const closeStatsModalBtn = document.getElementById('close-stats-modal-btn');
-                const achievementToast = document.getElementById('achievement-toast');
-                const achievementIcon = document.getElementById('achievement-icon');
-                const achievementTitle = document.getElementById('achievement-title');
-                const achievementDescription = document.getElementById('achievement-description');
-                const achievementChime = document.getElementById('achievement-chime');
-                const viewAchievementsBtn = document.getElementById('view-achievements-btn');
-                const achievementsModal = document.getElementById('achievements-modal');
-                const closeAchievementsModalBtn = document.getElementById('close-achievements-modal-btn');
-                const achievementsList = document.getElementById('achievements-list');
+            // --- DOM ELEMENTS ---
+            const calendarGrid = document.getElementById('calendar-grid');
+            const monthYearHeader = document.getElementById('month-year-header');
+            const prevMonthBtn = document.getElementById('prev-month-btn');
+            const nextMonthBtn = document.getElementById('next-month-btn');
+            const summaryToday = document.getElementById('summary-today');
+            const summaryPayPeriod = document.getElementById('summary-pay-period');
+            const summaryTotal = document.getElementById('summary-total');
+            const sidePanelContainer = document.getElementById('side-panel-container');
+            const sidePanelBackdrop = document.getElementById('side-panel-backdrop');
+            const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
+            const displaySelectedDate = document.getElementById('display-selected-date');
+            const addSessionBtn = document.getElementById('add-session-btn');
+            const sessionsDisplayArea = document.getElementById('sessions-display-area');
+            const additionalHoursDisplayArea = document.getElementById('additional-hours-display-area');
+            const displayDayTotal = document.getElementById('display-day-total');
+            const noHoursMessage = document.getElementById('no-hours-message');
+            const timeEntryModal = document.getElementById('time-entry-modal');
+            const closeEntryModalBtn = document.getElementById('close-entry-modal-btn');
+            const modalTitle = document.getElementById('modal-title');
+            const modalSelectedDate = document.getElementById('modal-selected-date');
+            const timeInInput = document.getElementById('time-in');
+            const timeOutInput = document.getElementById('time-out');
+            const timeInContainer = document.getElementById('time-in-container');
+            const timeOutContainer = document.getElementById('time-out-container');
+            const hourTypeContainer = document.getElementById('hour-type-container');
+            const additionalHoursInput = document.getElementById('additional-hours');
+            const additionalHoursContainer = document.getElementById('additional-hours-container');
+            const hourTypeButtons = document.querySelectorAll('.hour-type-btn');
+            const saveBtn = document.getElementById('save-btn');
+            const settingsBtn = document.getElementById('settings-btn');
+            const closeSettingsModalBtn = document.getElementById('close-settings-modal-btn');
+            const settingsModal = document.getElementById('settings-modal');
+            const themeSelect = document.getElementById('theme-select');
+            const backgroundSelect = document.getElementById('background-select');
+            const payPeriodSelect = document.getElementById('pay-period-select');
+            const clearDataBtn = document.getElementById('clear-data-btn');
+            const confirmModal = document.getElementById('confirm-modal');
+            const confirmMessage = document.getElementById('confirm-message');
+            const confirmOkBtn = document.getElementById('confirm-ok-btn');
+            const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+            const notificationToast = document.getElementById('notification-toast');
+            const notificationMessage = document.getElementById('notification-message');
+            const turnInHoursBtn = document.getElementById('turn-in-hours-btn');
+            const timesheetModal = document.getElementById('timesheet-modal');
+            const closeTimesheetModalBtn = document.getElementById('close-timesheet-modal-btn');
+            const closeTimesheetBtnBottom = document.getElementById('close-timesheet-btn-bottom');
+            const timesheetOutput = document.getElementById('timesheet-output');
+            const copyTimesheetBtn = document.getElementById('copy-timesheet-btn');
+            const clockInBtn = document.getElementById('clock-in-btn');
+            const clockOutBtn = document.getElementById('clock-out-btn');
+            const clockOutTypeModal = document.getElementById('clock-out-type-modal');
+            const confirmAcapBtn = document.getElementById('confirm-acap-btn');
+            const confirmCoreBtn = document.getElementById('confirm-core-btn');
+            const clockOutCancelBtn = document.getElementById('clock-out-cancel-btn');
+            const backgroundContainer = document.getElementById('background-animation-container');
+            const viewStatsBtn = document.getElementById('view-stats-btn');
+            const statsModal = document.getElementById('stats-modal');
+            const closeStatsModalBtn = document.getElementById('close-stats-modal-btn');
+            const weeklyHoursCtx = document.getElementById('weekly-hours-chart').getContext('2d');
+            const typeBreakdownCtx = document.getElementById('type-breakdown-chart').getContext('2d');
+            const statsNoDataMessage = document.getElementById('stats-no-data-message');
+            const achievementToast = document.getElementById('achievement-toast');
+            const achievementTitle = document.getElementById('achievement-title');
+            const achievementDesc = document.getElementById('achievement-desc');
+            const achievementChime = document.getElementById('achievement-chime');
 
-                // --- STATE & DEFINITIONS ---
-                let currentDate = new Date();
-                let selectedDate = null;
-                let editingSessionIndex = -1;
-                let timeData = {};
-                let settings = { theme: 'Sakura', background: 'none', payPeriod: 14 };
-                let achievementsData = {};
-                let modalHourType = 'CORE';
-                let onConfirmCallback = null;
-                let notificationTimeout, achievementTimeout;
-
-                const achievementDefinitions = {
-                    firstClockIn:    { title: "First Sunrise", description: "You've clocked in for the first time.", icon: "🌅" },
-                    firstClockOut:   { title: "First Sunset", description: "You've completed your first session.", icon: "🌇" },
-                    weekly10:        { title: "Steady Start", description: "Reached 10 hours in a single week.", icon: "🌱" },
-                    weekly20:        { title: "Halfway Hustler", description: "Reached 20 hours in a single week.", icon: "🏃‍♀️" },
-                    weekly40:        { title: "Full Week Warrior", description: "Reached 40 hours in a single week.", icon: "🏆" },
-                    firstPayPeriod:  { title: "Payday Pioneer", description: "Completed your first two-week period.", icon: "💌" },
-                    firstMonth:      { title: "Monthly Milestone", description: "You've been tracking for a month!", icon: "🗓️" },
-                    sixMonths:       { title: "Half-Year Hero", description: "Six months of dedication!", icon: "🌟" },
-                    oneYear:         { title: "Anniversary Achiever", description: "A whole year! Incredible commitment.", icon: "🎉" },
-                    quickSip:        { title: "A Quick Sip", description: "Logged a session less than an hour.", icon: "☕" },
-                    dynamicDuo:      { title: "Dynamic Duo", description: "Logged both ACAP and CORE in one day.", icon: "🤝" }
-                };
-                const themes = {
-                    default: { '--bg-primary': '#F3EAD3', '--bg-secondary': '#FFFFFF', '--text-primary': '#4A4A4A', '--text-secondary': '#7A7A7A', '--accent-primary': '#86A8E7', '--accent-secondary': '#91EAE4', '--border-default': '#D9D9D9' },
-                    'Oceanic': { '--bg-primary': '#0B2027', '--bg-secondary': '#12343B', '--text-primary': '#E0FBFC', '--text-secondary': '#96C5D9', '--accent-primary': '#3EF7B2', '--accent-secondary': '#00B4D8', '--border-default': 'rgba(150, 197, 217, 0.4)' },
-                    'Sakura': { '--bg-primary': '#F9F1F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#5B4242', '--text-secondary': '#8D6E6E', '--accent-primary': '#E6A4B4', '--accent-secondary': '#FFB7C5', '--border-default': '#E6DEDE' },
-                };
-
-                // --- CORE FUNCTIONS ---
-                function saveData() { localStorage.setItem('timeTrackerData', JSON.stringify(timeData)); localStorage.setItem('timeTrackerAchievements', JSON.stringify(achievementsData)); }
-                function loadData() { const d = localStorage.getItem('timeTrackerData'); if (d) timeData = JSON.parse(d); const a = localStorage.getItem('timeTrackerAchievements'); if (a) achievementsData = JSON.parse(a); }
-                function saveSettings() { localStorage.setItem('timeTrackerSettings', JSON.stringify(settings)); }
-                function loadSettings() { const s = localStorage.getItem('timeTrackerSettings'); if (s) settings = { ...settings, ...JSON.parse(s) }; }
-                function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
-
-                function calculateHours(dateStr) {
-                    const entry = timeData[dateStr];
-                    if (!entry) return 0;
-                    let duration = (entry.sessions || []).reduce((total, session) => {
-                        if (session.in && session.out) {
-                            const timeIn = new Date(`${dateStr}T${session.in}`);
-                            const timeOut = new Date(`${dateStr}T${session.out}`);
-                            if (timeOut > timeIn) return total + (timeOut - timeIn);
-                        }
-                        return total;
-                    }, 0) / 3600000;
-                    return duration + (entry.additional || 0);
+            // --- STATE MANAGEMENT ---
+            let currentDate = new Date();
+            let selectedDate = null;
+            let editingSessionIndex = -1;
+            let timeData = {};
+            let settings = { theme: 'Sakura', background: 'none', payPeriod: 14 };
+            let modalHourType = 'CORE';
+            let onConfirmCallback = null;
+            let notificationTimeout;
+            let weeklyChartInstance = null;
+            let typeChartInstance = null;
+            let unlockedAchievements = {};
+            let achievementQueue = [];
+            let isDisplayingAchievement = false;
+            
+            // --- HELPER FUNCTIONS ---
+            function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+            function getExactTime(date) { return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; }
+            function roundTimeString(timeString) {
+                if (!timeString) return '';
+                const [hours, minutes] = timeString.split(':').map(Number);
+                const totalMinutes = hours * 60 + minutes;
+                const roundedMinutes = Math.round(totalMinutes / 15) * 15;
+                const newHours = Math.floor(roundedMinutes / 60);
+                const newMinutes = roundedMinutes % 60;
+                const finalHours = newHours % 24;
+                return `${String(finalHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+            }
+            function getDayWithSuffix(d) {
+                const day = d.getDate();
+                if (day > 3 && day < 21) return day + 'th';
+                switch (day % 10) {
+                    case 1: return day + "st";
+                    case 2: return day + "nd";
+                    case 3: return day + "rd";
+                    default: return day + "th";
                 }
+            }
 
-                function updateAllUI() { renderCalendar(); updateSummaries(); if (selectedDate) updateDisplayPanel(selectedDate); checkAchievements(); }
+            // --- THEME & BACKGROUND MANAGEMENT ---
+            const themes = {
+                default: { '--bg-primary': '#F3EAD3', '--bg-secondary': '#FFFFFF', '--text-primary': '#4A4A4A', '--text-secondary': '#7A7A7A', '--accent-primary': '#86A8E7', '--accent-secondary': '#91EAE4', '--border-default': '#D9D9D9' },
+                'Oceanic': { '--bg-primary': '#0B2027', '--bg-secondary': '#12343B', '--text-primary': '#E0FBFC', '--text-secondary': '#96C5D9', '--accent-primary': '#3EF7B2', '--accent-secondary': '#00B4D8', '--border-default': 'rgba(150, 197, 217, 0.4)' },
+                'Sakura': { '--bg-primary': '#F9F1F1', '--bg-secondary': '#FFFFFF', '--text-primary': '#5B4242', '--text-secondary': '#8D6E6E', '--accent-primary': '#E6A4B4', '--accent-secondary': '#FFB7C5', '--border-default': '#E6DEDE' },
+            };
+            function applyTheme(themeName) { const t = themes[themeName]; if (!t) return; Object.keys(t).forEach(k => document.documentElement.style.setProperty(k, t[k])); settings.theme = themeName; saveSettings(); }
+            function populateThemeSelector() { Object.keys(themes).forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; themeSelect.appendChild(o); }); }
+            function applyBackground(name) { backgroundContainer.innerHTML = ''; document.body.classList.remove('animated-gradient'); if (name === 'gradient') document.body.classList.add('animated-gradient'); settings.background = name; saveSettings(); }
+
+            // --- SIDE PANEL & MODAL ---
+            function openSidePanel() { sidePanelContainer.classList.add('active'); }
+            function closeSidePanel() { sidePanelContainer.classList.remove('active'); }
+            function openTimeEntryModal(dateStr, sessionIndex = -1) { editingSessionIndex = sessionIndex; loadEntryForModal(dateStr, sessionIndex); timeEntryModal.classList.add('active'); }
+            function closeTimeEntryModal() { timeEntryModal.classList.remove('active'); }
+
+            // --- CALENDAR LOGIC ---
+            function renderCalendar() {
+                calendarGrid.innerHTML = '';
+                const month = currentDate.getMonth();
+                const year = currentDate.getFullYear();
+                monthYearHeader.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+                ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => { const e = document.createElement('div'); e.className = 'font-bold text-secondary text-sm py-2'; e.textContent = d; calendarGrid.appendChild(e); });
+                const firstDay = new Date(year, month, 1).getDay();
+                for (let i = 0; i < firstDay; i++) calendarGrid.appendChild(document.createElement('div'));
                 
-                function renderCalendar() {
-                    calendarGrid.innerHTML = '';
-                    const month = currentDate.getMonth(), year = currentDate.getFullYear();
-                    monthYearHeader.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
-                    ['S','M','T','W','T','F','S'].forEach(d => { const e = document.createElement('div'); e.className = 'font-bold text-secondary text-sm py-2'; e.textContent = d; calendarGrid.appendChild(e); });
-                    const firstDayOfMonth = new Date(year, month, 1).getDay();
-                    for (let i = 0; i < firstDayOfMonth; i++) calendarGrid.appendChild(document.createElement('div'));
-                    const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    const today = new Date();
-                    for (let day = 1; day <= daysInMonth; day++) {
-                        const dayEl = document.createElement('button');
-                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                        dayEl.textContent = day;
-                        dayEl.className = 'p-2 rounded-lg transition-all duration-200 aspect-square flex items-center justify-center border';
-                        dayEl.dataset.date = dateStr;
-                        if (selectedDate === dateStr) { dayEl.style.borderColor = 'var(--accent-primary)'; dayEl.classList.add('border-2'); } else { dayEl.style.borderColor = 'var(--border-default)'; }
-                        if (timeData[dateStr] && calculateHours(dateStr) > 0) { dayEl.style.backgroundColor = 'var(--accent-secondary)'; dayEl.classList.add('font-bold', 'text-white'); }
-                        if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) { dayEl.classList.add('font-extrabold'); }
-                        calendarGrid.appendChild(dayEl);
+                for (let day = 1; day <= new Date(year, month + 1, 0).getDate(); day++) {
+                    const dayEl = document.createElement('button');
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    dayEl.textContent = day;
+                    dayEl.className = 'p-2 rounded-lg transition-all duration-200 aspect-square flex items-center justify-center border';
+                    
+                    if (selectedDate === dateStr) {
+                        dayEl.classList.add('border-2');
+                        dayEl.style.borderColor = 'var(--accent-primary)';
+                    } else {
+                        dayEl.style.borderColor = 'var(--border-default)';
                     }
-                }
 
-                function updateSummaries() {
-                    const todayStr = getDateString(new Date());
-                    summaryToday.textContent = `${calculateHours(todayStr).toFixed(2)}h`;
-                    summaryTotal.textContent = `${Object.keys(timeData).reduce((a, d) => a + calculateHours(d), 0).toFixed(2)}h`;
-                    let periodHours = 0; const today = new Date();
-                    for (let i = 0; i < settings.payPeriod; i++) { const date = new Date(); date.setDate(today.getDate() - i); periodHours += calculateHours(getDateString(date)); }
-                    summaryPayPeriod.textContent = `${periodHours.toFixed(2)}h`;
+                    if (timeData[dateStr] && calculateHours(dateStr) > 0) {
+                        dayEl.classList.add('font-bold');
+                        dayEl.style.backgroundColor = 'var(--accent-secondary)';
+                        dayEl.style.color = 'white';
+                    }
+                    
+                    const today = new Date();
+                    if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                        dayEl.classList.add('font-extrabold');
+                    }
+                    
+                    dayEl.addEventListener('click', () => {
+                        selectedDate = dateStr;
+                        updateDisplayPanel(dateStr);
+                        renderCalendar();
+                        if (calculateHours(dateStr) > 0) { openSidePanel(); } 
+                        else { openTimeEntryModal(dateStr, -1); }
+                    });
+                    calendarGrid.appendChild(dayEl);
                 }
+            }
 
-                function updateDisplayPanel(dateStr) {
-                    if (!timeData[dateStr]) { timeData[dateStr] = { sessions: [], additional: 0 }; }
-                    const entry = timeData[dateStr];
-                    const dateObj = new Date(`${dateStr}T00:00:00`);
-                    displaySelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    sessionsDisplayArea.innerHTML = '';
-                    (entry.sessions || []).forEach((session, index) => {
+            // --- UI & DATA FLOW ---
+            function updateDisplayPanel(dateStr) {
+                const entry = timeData[dateStr] || { sessions: [], additional: 0 };
+                const dateObj = new Date(`${dateStr}T00:00:00Z`);
+                displaySelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                sessionsDisplayArea.innerHTML = '';
+                additionalHoursDisplayArea.innerHTML = '';
+                const hasHours = calculateHours(dateStr) > 0;
+                noHoursMessage.classList.toggle('hidden', !hasHours);
+                addSessionBtn.classList.toggle('hidden', !dateStr);
+                if (hasHours) {
+                    entry.sessions.forEach((session, index) => {
                         const sEl = document.createElement('div');
                         sEl.className = 'p-3 rounded-lg flex items-center gap-2'; sEl.style.backgroundColor = 'var(--bg-primary)';
-                        sEl.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-center text-sm"><span>${session.in||'--:--'} - ${session.out||'...'}</span><span class="font-bold">${session.type||'N/A'}</span></div></div><div class="flex items-center"><button class="p-1 hover:text-blue-500" title="Edit Session" data-action="edit" data-index="${index}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button><button class="p-1 hover:text-red-500" title="Delete Session" data-action="delete" data-index="${index}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div>`;
+                        sEl.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-center text-sm"><span>${session.in || '--:--'} - ${session.out || '...'}</span><span class="font-bold">${session.type || 'N/A'}</span></div></div>`;
+                        const ctrls = document.createElement('div'); ctrls.className = 'flex items-center';
+                        const editBtn = document.createElement('button');
+                        editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+                        editBtn.className = 'p-1 hover:text-blue-500'; editBtn.title = "Edit Session";
+                        editBtn.onclick = () => openTimeEntryModal(dateStr, index);
+                        const delBtn = document.createElement('button');
+                        delBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+                        delBtn.className = 'p-1 hover:text-red-500'; delBtn.title = "Delete Session";
+                        delBtn.onclick = () => deleteSession(dateStr, index);
+                        ctrls.appendChild(editBtn); ctrls.appendChild(delBtn);
+                        sEl.appendChild(ctrls);
                         sessionsDisplayArea.appendChild(sEl);
                     });
-                    additionalHoursDisplayArea.innerHTML = `<div class="flex justify-between items-center p-3 rounded-lg" style="background-color:var(--bg-primary);"><div class="flex-grow"><div class="flex justify-between items-center text-sm"><span>Additional Hours:</span><span class="font-bold">${(entry.additional||0).toFixed(2)}h</span></div></div><button class="p-1 hover:text-blue-500 ml-2" title="Edit Additional Hours" data-action="edit-additional"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pointer-events-none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div>`;
-                    displayDayTotal.textContent = `${calculateHours(dateStr).toFixed(2)}h`;
-                    noHoursMessage.classList.toggle('hidden', calculateHours(dateStr) > 0);
+                    const addEl = document.createElement('div');
+                    addEl.className = "flex justify-between items-center p-3 rounded-lg"; addEl.style.backgroundColor = 'var(--bg-primary)';
+                    addEl.innerHTML = `<div class="flex-grow"><div class="flex justify-between items-center text-sm"><span>Additional Hours:</span><span class="font-bold">${(entry.additional || 0).toFixed(2)}h</span></div></div>`;
+                    const editAddBtn = document.createElement('button');
+                    editAddBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+                    editAddBtn.className = 'p-1 hover:text-blue-500 ml-2'; editAddBtn.title = "Edit Additional Hours";
+                    editAddBtn.onclick = () => openTimeEntryModal(dateStr, 'additional');
+                    addEl.appendChild(editAddBtn);
+                    additionalHoursDisplayArea.appendChild(addEl);
                 }
+                displayDayTotal.textContent = `${calculateHours(dateStr).toFixed(2)}h`;
+            }
 
-                function checkAchievements() {
-                    const allDates = Object.keys(timeData).sort();
-                    if (allDates.length === 0) return;
-                    if (Object.values(timeData).some(d=>(d.sessions||[]).length>0)) unlockAchievement('firstClockIn');
-                    if (Object.values(timeData).some(d=>(d.sessions||[]).some(s=>s.in&&s.out))) unlockAchievement('firstClockOut');
-                    const firstDay = new Date(allDates[0]+'T00:00:00'), lastDay = new Date(allDates[allDates.length-1]+'T00:00:00');
-                    const dayDiff = (lastDay - firstDay)/(1000*3600*24);
-                    if (dayDiff >= 14) unlockAchievement('firstPayPeriod');
-                    if (dayDiff >= 30) unlockAchievement('firstMonth');
-                    if (dayDiff >= 182) unlockAchievement('sixMonths');
-                    if (dayDiff >= 365) unlockAchievement('oneYear');
-                    const weeklyHours={};
-                    for(const dateStr of allDates) {
-                        const date=new Date(dateStr+'T00:00:00');
-                        const firstDayOfWeek=new Date(date.setDate(date.getDate()-date.getDay()));
-                        const weekKey=getDateString(firstDayOfWeek);
-                        if(!weeklyHours[weekKey])weeklyHours[weekKey]=0;
-                        weeklyHours[weekKey]+=calculateHours(dateStr);
-                        const types=new Set((timeData[dateStr].sessions||[]).map(s=>s.type));
-                        if(types.has('ACAP')&&types.has('CORE'))unlockAchievement('dynamicDuo');
+            function updateHourTypeSelectionUI() { hourTypeButtons.forEach(b => { b.classList.toggle('btn-primary', b.dataset.type === modalHourType); b.classList.toggle('btn-secondary', b.dataset.type !== modalHourType); }); }
+
+            function loadEntryForModal(dateStr, sessionIndex) {
+                const entry = timeData[dateStr] || { sessions: [], additional: 0 };
+                const dateObj = new Date(`${dateStr}T00:00:00Z`);
+                modalSelectedDate.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                const isAdd = sessionIndex === 'additional';
+                additionalHoursContainer.classList.toggle('hidden', !isAdd);
+                timeInContainer.classList.toggle('hidden', isAdd);
+                timeOutContainer.classList.toggle('hidden', isAdd);
+                hourTypeContainer.classList.toggle('hidden', isAdd);
+                if (isAdd) { modalTitle.textContent = "Edit Additional Hours"; additionalHoursInput.value = entry.additional || ''; } 
+                else if (sessionIndex >= 0 && entry.sessions[sessionIndex]) { const s = entry.sessions[sessionIndex]; modalTitle.textContent = "Edit Session"; timeInInput.value = s.in || ''; timeOutInput.value = s.out || ''; modalHourType = s.type || 'CORE'; } 
+                else { modalTitle.textContent = "Add New Session"; timeInInput.value = ''; timeOutInput.value = ''; additionalHoursInput.value = ''; modalHourType = 'CORE'; }
+                updateHourTypeSelectionUI();
+            }
+
+            function saveEntry() {
+                if (!selectedDate) return;
+                if (!timeData[selectedDate]) timeData[selectedDate] = { sessions: [], additional: 0 };
+                if (editingSessionIndex === 'additional') { timeData[selectedDate].additional = parseFloat(additionalHoursInput.value) || 0; } 
+                else if (editingSessionIndex >= 0) { timeData[selectedDate].sessions[editingSessionIndex] = { in: timeInInput.value, out: timeOutInput.value, type: modalHourType }; } 
+                else { timeData[selectedDate].sessions.push({ in: timeInInput.value, out: timeOutInput.value, type: modalHourType }); }
+                showNotification('Hours saved!');
+                saveData(); updateAllUI();
+                checkAllAchievements();
+                setTimeout(closeTimeEntryModal, 400); 
+            }
+            
+            function deleteSession(dateStr, index) {
+                showConfirm("Delete this session?", () => {
+                   if(timeData[dateStr] && timeData[dateStr].sessions[index]) {
+                       timeData[dateStr].sessions.splice(index, 1);
+                       showNotification('Session deleted.');
+                       saveData(); updateAllUI();
+                   }
+                });
+            }
+
+            function calculateHours(dateStr) {
+                const e = timeData[dateStr]; if (!e) return 0;
+                let dur = e.sessions ? e.sessions.reduce((t, s) => { if (s.in && s.out) { const i = new Date(`${dateStr}T${s.in}`); const o = new Date(`${dateStr}T${s.out}`); if (o > i) return t + (o - i) / 3600000; } return t; }, 0) : 0;
+                return dur + (e.additional || 0);
+            }
+
+            function updateAllUI() { renderCalendar(); updateSummaries(); if(selectedDate) updateDisplayPanel(selectedDate); }
+
+            function updateSummaries() {
+                const todayStr = getDateString(new Date());
+                summaryToday.textContent = `${calculateHours(todayStr).toFixed(2)}h`;
+                summaryTotal.textContent = `${Object.keys(timeData).reduce((a, d) => a + calculateHours(d), 0).toFixed(2)}h`;
+                let periodHours = 0; const today = new Date();
+                // This summary shows the current pay period setting, not the fixed two weeks for the timesheet.
+                for (let i = 0; i < settings.payPeriod; i++) {
+                    const date = new Date(today); date.setDate(today.getDate() - i);
+                    periodHours += calculateHours(getDateString(date));
+                }
+                summaryPayPeriod.textContent = `${periodHours.toFixed(2)}h`;
+            }
+            
+            function generateAndShowTimesheet() {
+                // A known pay period started on Sat, July 5, 2025. All 2-week periods are relative to this.
+                const refStartDate = new Date('2025-07-05T00:00:00');
+                const today = new Date();
+                const periodDuration = 14; // Always 2 weeks
+                const msPerDay = 1000 * 60 * 60 * 24;
+
+                // Find which 14-day period we are currently in, relative to the reference start date.
+                const daysSinceRef = Math.floor((today - refStartDate) / msPerDay);
+                const periodNum = Math.floor(daysSinceRef / periodDuration);
+                
+                // Calculate the start and end dates of the current pay period.
+                const periodStartDate = new Date(refStartDate);
+                periodStartDate.setDate(refStartDate.getDate() + (periodNum * periodDuration));
+                
+                const periodEndDate = new Date(periodStartDate);
+                periodEndDate.setDate(periodStartDate.getDate() + (periodDuration - 1));
+
+                let timesheetLines = [];
+                let acapTotal = 0;
+                let coreTotal = 0;
+
+                for (let d = new Date(periodStartDate); d <= periodEndDate; d.setDate(d.getDate() + 1)) {
+                    const dateStr = getDateString(d);
+                    const entry = timeData[dateStr];
+                    const dayOfWeekStr = d.toLocaleDateString('en-US', { weekday: 'short' });
+                    const month = d.toLocaleDateString('en-US', { month: 'short' });
+                    const dayWithSuffix = getDayWithSuffix(d);
+                    const baseLine = `${dayOfWeekStr} ${dayWithSuffix} - ${month}`;
+
+                    let dayHasContent = false;
+                    
+                    if (entry && entry.sessions && entry.sessions.length > 0) {
+                        entry.sessions.forEach(session => {
+                            if (session.in && session.out) {
+                                const roundedIn = roundTimeString(session.in);
+                                const roundedOut = roundTimeString(session.out);
+                                
+                                const inDate = new Date(`${dateStr}T${roundedIn}`);
+                                let outDate = new Date(`${dateStr}T${roundedOut}`);
+
+                                if (outDate < inDate) { outDate.setDate(outDate.getDate() + 1); }
+                                
+                                const sessionHours = (outDate - inDate) / 3600000;
+
+                                if (sessionHours > 0) {
+                                    timesheetLines.push(`${baseLine} ${roundedIn} - ${roundedOut} ${sessionHours.toFixed(2)} ${session.type || 'CORE'}`);
+                                    if (session.type === 'ACAP') {
+                                        acapTotal += sessionHours;
+                                    } else {
+                                        coreTotal += sessionHours;
+                                    }
+                                    dayHasContent = true;
+                                }
+                            }
+                        });
                     }
-                    if (Object.values(weeklyHours).some(h=>h>=10)) unlockAchievement('weekly10');
-                    if (Object.values(weeklyHours).some(h=>h>=20)) unlockAchievement('weekly20');
-                    if (Object.values(weeklyHours).some(h=>h>=40)) unlockAchievement('weekly40');
-                }
-                function unlockAchievement(id) { if (!achievementsData[id]) { achievementsData[id] = true; saveData(); showAchievementNotification(id); } }
-                function showAchievementNotification(id) {
-                    clearTimeout(achievementTimeout);
-                    const achievement = achievementDefinitions[id];
-                    achievementIcon.textContent = achievement.icon;
-                    achievementTitle.textContent = achievement.title;
-                    achievementDescription.textContent = achievement.description;
-                    achievementChime.currentTime = 0;
-                    achievementChime.play().catch(e => console.error("Audio play failed:", e));
-                    achievementToast.classList.add('show');
-                    achievementTimeout = setTimeout(() => achievementToast.classList.remove('show'), 5000);
-                }
-                function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
-                function openTimeEntryModal(dateStr, sessionIndex=-1) {
-                    editingSessionIndex = sessionIndex;
-                    const entry = timeData[dateStr] || { sessions: [], additional: 0 };
-                    modalSelectedDate.textContent = new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                    const isAdd = sessionIndex === 'additional';
-                    [timeInContainer, timeOutContainer, hourTypeContainer].forEach(el => el.style.display = isAdd ? 'none' : 'block');
-                    additionalHoursContainer.style.display = isAdd ? 'block' : 'none';
-                    if (isAdd) { modalTitle.textContent = "Edit Additional Hours"; additionalHoursInput.value = entry.additional || ''; }
-                    else if (sessionIndex >= 0 && entry.sessions[sessionIndex]) { const s = entry.sessions[sessionIndex]; modalTitle.textContent = "Edit Session"; timeInInput.value = s.in || ''; timeOutInput.value = s.out || ''; modalHourType = s.type || 'CORE'; }
-                    else { modalTitle.textContent = "Add New Session"; [timeInInput.value,timeOutInput.value] = ['','']; modalHourType = 'CORE'; }
-                    hourTypeButtons.forEach(b => b.classList.toggle('btn-primary', b.dataset.type === modalHourType) || b.classList.toggle('btn-secondary', b.dataset.type !== modalHourType));
-                    timeEntryModal.classList.add('active');
+
+                    if (!dayHasContent) {
+                        const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                        if (isWeekend) {
+                            timesheetLines.push(`${baseLine} - Closed`);
+                        } else {
+                            timesheetLines.push(baseLine);
+                        }
+                    }
                 }
 
-                // --- INITIALIZATION & EVENT LISTENERS ---
-                loadSettings();
-                loadData();
+                const grandTotal = acapTotal + coreTotal;
+                const summaryLines = [
+                    '\nHere is the summary:\n',
+                    `ACAP total: ${acapTotal.toFixed(2)} hours`,
+                    `Core total: ${coreTotal.toFixed(2)} hours`,
+                    `\nTotal: ${grandTotal.toFixed(2)} hours`
+                ];
 
-                // Setup UI based on loaded settings
-                const themes = { default: {}, Oceanic: {'--bg-primary':'#0B2027','--bg-secondary':'#12343B','--text-primary':'#E0FBFC','--text-secondary':'#96C5D9','--accent-primary':'#3EF7B2','--accent-secondary':'#00B4D8','--border-default':'rgba(150,197,217,0.4)'}, Sakura: {'--bg-primary':'#F9F1F1','--bg-secondary':'#FFFFFF','--text-primary':'#5B4242','--text-secondary':'#8D6E6E','--accent-primary':'#E6A4B4','--accent-secondary':'#FFB7C5','--border-default':'#E6DEDE'} };
-                Object.keys(themes).forEach(n => themeSelect.add(new Option(n, n)));
-                themeSelect.value = settings.theme;
-                Object.keys(themes[settings.theme]).forEach(k => document.documentElement.style.setProperty(k, themes[settings.theme][k]));
-                backgroundSelect.value = settings.background;
-                if(settings.background === 'gradient') document.body.classList.add('animated-gradient');
-                payPeriodSelect.value = settings.payPeriod;
+                timesheetOutput.value = timesheetLines.join('\n') + summaryLines.join('\n');
+                timesheetModal.classList.add('active');
+                showNotification("Timesheet generated for the current 2-week period.");
+            }
+            
+            function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
+            function showConfirm(message, onConfirm) { confirmMessage.textContent = message; onConfirmCallback = onConfirm; confirmModal.classList.add('active'); }
+            
+            // --- ACHIEVEMENT SYSTEM ---
+            const achievements = {
+                firstClockIn: { title: "Early Bird", desc: "You clocked in for the first time!", check: () => Object.keys(timeData).length > 0 },
+                firstClockOut: { title: "And... Scene!", desc: "You finished your first session!", check: () => Object.values(timeData).some(d => d.sessions && d.sessions.some(s => s.in && s.out)) },
+                weekly10: { title: "Getting Warmed Up", desc: "You worked 10 hours in a week!", check: () => getWeekHours(new Date()) >= 10 },
+                weekly20: { title: "Part-Time Pro", desc: "You worked 20 hours in a week!", check: () => getWeekHours(new Date()) >= 20 },
+                weekly40: { title: "Full-Time Hero", desc: "You worked 40 hours in a week!", check: () => getWeekHours(new Date()) >= 40 },
+                firstPayPeriod: { title: "First Paycheck!", desc: "You completed your first pay period!", check: () => hasCompletedPayPeriod() },
+                oneMonth: { title: "Monthly Milestone", desc: "You've been tracking for a month!", check: () => checkDuration(30) },
+                sixMonths: { title: "Half-Year Hustler", desc: "Six months of hard work!", check: () => checkDuration(182) },
+                oneYear: { title: "Anniversary Ace", desc: "A full year of dedication!", check: () => checkDuration(365) },
+                shortShift: { title: "Quick Trip", desc: "Worked for less than an hour.", check: (data) => data?.lastSessionHours > 0 && data.lastSessionHours < 1 },
+                bothTypes: { title: "Jack of All Trades", desc: "Logged both CORE and ACAP in one day!", check: (data) => {
+                    if (!data?.date) return false;
+                    const entry = timeData[data.date];
+                    if (!entry || !entry.sessions) return false;
+                    const types = new Set(entry.sessions.map(s => s.type));
+                    return types.has('CORE') && types.has('ACAP');
+                }},
+            };
 
-                updateAllUI();
+            function getWeekHours(refDate) {
+                let total = 0;
+                const startOfWeek = new Date(refDate);
+                startOfWeek.setDate(refDate.getDate() - refDate.getDay()); // Sunday
+                for(let i=0; i<7; i++) {
+                    const day = new Date(startOfWeek);
+                    day.setDate(startOfWeek.getDate() + i);
+                    total += calculateHours(getDateString(day));
+                }
+                return total;
+            }
 
-                // Attach all event listeners
-                calendarGrid.addEventListener('click', e => {
-                    if (e.target.matches('button[data-date]')) {
-                        selectedDate = e.target.dataset.date;
-                        updateAllUI();
-                        if (timeData[selectedDate] && calculateHours(selectedDate) > 0) { sidePanelContainer.classList.add('active'); } 
-                        else { openTimeEntryModal(selectedDate); }
+            function hasCompletedPayPeriod() {
+                const refStartDate = new Date('2025-07-05T00:00:00');
+                const today = new Date();
+                const msPerDay = 1000 * 60 * 60 * 24;
+                const daysSinceRef = Math.floor((today - refStartDate) / msPerDay);
+                const periodNum = Math.floor(daysSinceRef / 14);
+                if (periodNum < 1) return false; // Must be at least in the second pay period
+                
+                const prevPeriodStartDate = new Date(refStartDate);
+                prevPeriodStartDate.setDate(refStartDate.getDate() + ((periodNum - 1) * 14));
+                let prevPeriodHours = 0;
+                for (let i = 0; i < 14; i++) {
+                    const date = new Date(prevPeriodStartDate);
+                    date.setDate(prevPeriodStartDate.getDate() + i);
+                    prevPeriodHours += calculateHours(getDateString(date));
+                }
+                return prevPeriodHours > 0;
+            }
+
+            function checkDuration(days) {
+                const dateKeys = Object.keys(timeData);
+                if (dateKeys.length === 0) return false;
+                const firstDate = new Date(dateKeys.sort()[0]);
+                const diff = (new Date() - firstDate) / (1000 * 60 * 60 * 24);
+                return diff >= days;
+            }
+
+            function checkAllAchievements(eventData) {
+                Object.keys(achievements).forEach(id => {
+                    if (!unlockedAchievements[id] && achievements[id].check(eventData)) {
+                        unlockAchievement(id);
                     }
                 });
-                prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
-                nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
-                sessionsDisplayArea.addEventListener('click', e => { const t = e.target.closest('button'); if(t){ const {action,index}=t.dataset; if(action==='edit')openTimeEntryModal(selectedDate,parseInt(index));if(action==='delete'){showConfirm('Delete session?',()=>{if(timeData[selectedDate]?.sessions[index]){timeData[selectedDate].sessions.splice(index,1);saveData();updateAllUI();}})}});
-                additionalHoursDisplayArea.addEventListener('click', e => { if(e.target.closest('button')?.dataset.action==='edit-additional')openTimeEntryModal(selectedDate,'additional'); });
-                addSessionBtn.addEventListener('click', () => { openTimeEntryModal(selectedDate); sidePanelContainer.classList.remove('active'); });
-                saveBtn.addEventListener('click', () => { if(!selectedDate)return;if(!timeData[selectedDate])timeData[selectedDate]={sessions:[],additional:0};if(editingSessionIndex==='additional'){timeData[selectedDate].additional=parseFloat(additionalHoursInput.value)||0;}else{const s={in:timeInInput.value,out:timeOutInput.value,type:modalHourType};if(editingSessionIndex>=0){timeData[selectedDate].sessions[editingSessionIndex]=s;}else{timeData[selectedDate].sessions.push(s);}}saveData();updateAllUI();timeEntryModal.classList.remove('active');showNotification('Hours saved!'); });
-                clockInBtn.addEventListener('click',()=>{const now=new Date(),todayStr=getDateString(now);if(!timeData[todayStr])timeData[todayStr]={sessions:[],additional:0};if(timeData[todayStr].sessions.find(s=>s.in&&!s.out)){showNotification('Already clocked in.');return;}const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});timeData[todayStr].sessions.push({in:t});selectedDate=todayStr;saveData();updateAllUI();showNotification(`Clocked in: ${t}`);sidePanelContainer.classList.add('active');});
-                clockOutBtn.addEventListener('click',()=>{const todayStr=getDateString(new Date());if(!timeData[todayStr]?.sessions.find(s=>s.in&&!s.out)){showNotification('Not clocked in.');return;}clockOutTypeModal.classList.add('active');});
-                [confirmAcapBtn,confirmCoreBtn].forEach(b=>b.addEventListener('click',e=>{const type=e.target.id.includes('acap')?'ACAP':'CORE';const now=new Date(),todayStr=getDateString(now);const openIdx=timeData[todayStr].sessions.findIndex(s=>s.in&&!s.out);if(openIdx>-1){const t=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});timeData[todayStr].sessions[openIdx].out=t;timeData[todayStr].sessions[openIdx].type=type;const dur=(new Date(`${todayStr}T${t}`)-new Date(`${todayStr}T${timeData[todayStr].sessions[openIdx].in}`))/36e5;if(dur>0&&dur<1)unlockAchievement('quickSip');saveData();updateAllUI();clockOutTypeModal.classList.remove('active');showNotification(`Clocked out: ${t}`);sidePanelContainer.classList.add('active');}}));
-                payPeriodSelect.addEventListener('change', e => { settings.payPeriod = parseInt(e.target.value, 10); saveSettings(); updateSummaries(); });
-                themeSelect.addEventListener('change', e => { const t = themes[e.target.value]; Object.keys(t).forEach(k=>document.documentElement.style.setProperty(k, t[k])); settings.theme=e.target.value; saveSettings(); });
-                backgroundSelect.addEventListener('change', e => { document.body.classList.toggle('animated-gradient', e.target.value==='gradient'); settings.background=e.target.value; saveSettings(); });
-                clearDataBtn.addEventListener('click', () => showConfirm('Delete all entries and achievements?',()=>{timeData={};achievementsData={};saveData();updateAllUI();showNotification('All data cleared.');}));
-                hourTypeButtons.forEach(b=>b.addEventListener('click',()=>hourTypeButtons.forEach(btn=>btn.classList.toggle('btn-primary',btn===b)||btn.classList.toggle('btn-secondary',btn!==b))||(modalHourType=b.dataset.type)));
-                viewAchievementsBtn.addEventListener('click',()=>{achievementsModal.classList.add('active');achievementsList.innerHTML='';Object.keys(achievementDefinitions).forEach(id=>{const a=achievementDefinitions[id],isUnlocked=!!achievementsData[id],i=document.createElement('div');i.className=`achievement-item p-4 rounded-lg flex items-center gap-4 border ${isUnlocked?'unlocked':''}`;i.style.borderColor='var(--border-default)';if(isUnlocked)i.style.backgroundColor='var(--bg-primary)';i.innerHTML=`<div class="text-3xl">${a.icon}</div><div><p class="font-bold text-primary">${a.title}</p><p class="text-sm text-secondary">${a.description}</p></div>`;achievementsList.appendChild(i);})});
-                // Close modals
-                [closeSidePanelBtn, sidePanelBackdrop].forEach(el=>el.addEventListener('click',()=>sidePanelContainer.classList.remove('active')));
-                [closeEntryModalBtn, closeSettingsModalBtn, closeStatsModalBtn, clockOutCancelBtn, closeAchievementsModalBtn, confirmCancelBtn, closeTimesheetModalBtn, closeTimesheetBtnBottom].forEach(el=>el.addEventListener('click',()=>el.closest('.modal-backdrop').classList.remove('active')));
-                confirmOkBtn.addEventListener('click', () => { if (onConfirmCallback) onConfirmCallback(); confirmModal.classList.remove('active'); });
-
-            } catch (error) {
-                console.error("Critical initialization error:", error);
-                document.body.innerHTML = `<div style="padding: 2rem; text-align: center; font-family: sans-serif; color: #333; background-color: #fffbe6;">
-                    <h1 style="color: #d9534f;">Oh no! A critical error occurred.</h1>
-                    <p style="margin: 1rem 0;">The application could not start. This is a bug in the code. Please copy the error message below and send it back for a fix.</p>
-                    <pre style="background: #f9f2f4; color: #c7254e; padding: 1rem; border-radius: 8px; text-align: left; white-space: pre-wrap; word-break: break-all; border: 1px solid #d6d6d6;">${error.stack}</pre>
-                </div>`;
             }
+
+            function unlockAchievement(id) {
+                unlockedAchievements[id] = true;
+                achievementQueue.push(id);
+                processAchievementQueue();
+                saveData();
+            }
+
+            function processAchievementQueue() {
+                if (isDisplayingAchievement || achievementQueue.length === 0) return;
+                isDisplayingAchievement = true;
+                const id = achievementQueue.shift();
+                const achievement = achievements[id];
+                achievementTitle.textContent = achievement.title;
+                achievementDesc.textContent = achievement.desc;
+                achievementToast.classList.add('show');
+                achievementChime.currentTime = 0;
+                achievementChime.play().catch(e => console.log("Audio play failed:", e));
+                
+                setTimeout(() => {
+                    achievementToast.classList.remove('show');
+                    setTimeout(() => {
+                        isDisplayingAchievement = false;
+                        processAchievementQueue();
+                    }, 500);
+                }, 4000);
+            }
+
+            // --- LOCAL STORAGE ---
+            function saveData() { 
+                localStorage.setItem('timeTrackerData', JSON.stringify(timeData)); 
+                localStorage.setItem('unlockedAchievements', JSON.stringify(unlockedAchievements));
+            }
+            function loadData() { 
+                const d = localStorage.getItem('timeTrackerData'); 
+                if (d) timeData = JSON.parse(d); 
+                const a = localStorage.getItem('unlockedAchievements');
+                if (a) unlockedAchievements = JSON.parse(a);
+            }
+            function saveSettings() { localStorage.setItem('timeTrackerSettings', JSON.stringify(settings)); }
+            function loadSettings() { const s = localStorage.getItem('timeTrackerSettings'); if (s) settings = {...settings, ...JSON.parse(s)}; }
+            function clearAllData() { showConfirm('Delete all entries and achievements?', () => { 
+                timeData = {}; 
+                unlockedAchievements = {};
+                saveData(); updateAllUI(); showNotification('All data cleared.'); }); 
+            }
+
+            // --- EVENT LISTENERS ---
+            prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+            nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+            addSessionBtn.addEventListener('click', () => { openTimeEntryModal(selectedDate, -1); closeSidePanel(); });
+            saveBtn.addEventListener('click', saveEntry);
+            closeEntryModalBtn.addEventListener('click', closeTimeEntryModal);
+            closeSidePanelBtn.addEventListener('click', closeSidePanel);
+            sidePanelBackdrop.addEventListener('click', closeSidePanel);
+            settingsBtn.addEventListener('click', () => settingsModal.classList.add('active'));
+            closeSettingsModalBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
+            confirmOkBtn.addEventListener('click', () => { if (onConfirmCallback) onConfirmCallback(); confirmModal.classList.remove('active'); onConfirmCallback = null; });
+            confirmCancelBtn.addEventListener('click', () => { confirmModal.classList.remove('active'); onConfirmCallback = null; });
+            themeSelect.addEventListener('change', e => applyTheme(e.target.value));
+            backgroundSelect.addEventListener('change', e => applyBackground(e.target.value));
+            payPeriodSelect.addEventListener('change', e => { settings.payPeriod = parseInt(e.target.value, 10); saveSettings(); updateSummaries(); });
+            clearDataBtn.addEventListener('click', clearAllData);
+            hourTypeButtons.forEach(b => { b.addEventListener('click', () => { modalHourType = b.dataset.type; updateHourTypeSelectionUI(); }); });
+            turnInHoursBtn.addEventListener('click', generateAndShowTimesheet);
+            
+            copyTimesheetBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(timesheetOutput.value)
+                    .then(() => {
+                        showNotification('Timesheet copied to clipboard!');
+                    })
+                    .catch(err => {
+                        console.error('Could not copy text: ', err);
+                        showNotification('Failed to copy. Please copy manually.');
+                    });
+            });
+
+            const closeSheet = () => timesheetModal.classList.remove('active');
+            closeTimesheetModalBtn.addEventListener('click', closeSheet);
+            closeTimesheetBtnBottom.addEventListener('click', closeSheet);
+            timesheetModal.addEventListener('click', (e) => { if (e.target === timesheetModal) closeSheet(); });
+            viewStatsBtn.addEventListener('click', () => { renderCharts(); statsModal.classList.add('active'); });
+            closeStatsModalBtn.addEventListener('click', () => statsModal.classList.remove('active'));
+
+            clockInBtn.addEventListener('click', () => {
+                const now = new Date(); 
+                const todayStr = getDateString(now);
+                if (!timeData[todayStr]) timeData[todayStr] = { sessions: [], additional: 0 };
+                if (timeData[todayStr].sessions.find(s => s.in && !s.out)) { showNotification('You are already clocked in.'); return; }
+                const exactTime = getExactTime(now);
+                timeData[todayStr].sessions.push({ in: exactTime });
+                selectedDate = todayStr;
+                saveData(); updateAllUI();
+                showNotification(`Clocked in: ${exactTime}`);
+                checkAllAchievements();
+                openSidePanel();
+            });
+
+            clockOutBtn.addEventListener('click', () => {
+                const todayStr = getDateString(new Date());
+                if (!timeData[todayStr]?.sessions.find(s => s.in && !s.out)) { showNotification('You are not clocked in.'); return; }
+                clockOutTypeModal.classList.add('active');
+            });
+            
+            function handleClockOutWithType(type) {
+                const now = new Date();
+                const todayStr = getDateString(now);
+                const openSessionIdx = timeData[todayStr].sessions.findIndex(s => s.in && !s.out);
+                if (openSessionIdx > -1) {
+                    const exactTime = getExactTime(now);
+                    const session = timeData[todayStr].sessions[openSessionIdx];
+                    session.out = exactTime;
+                    session.type = type;
+                    selectedDate = todayStr;
+
+                    const inDate = new Date(`${todayStr}T${session.in}`);
+                    const outDate = new Date(`${todayStr}T${session.out}`);
+                    const lastSessionHours = (outDate > inDate) ? (outDate - inDate) / 3600000 : 0;
+                    
+                    saveData(); updateAllUI();
+                    clockOutTypeModal.classList.remove('active');
+                    showNotification(`Clocked out: ${exactTime}`);
+                    checkAllAchievements({ lastSessionHours: lastSessionHours, date: todayStr });
+                    openSidePanel();
+                }
+            }
+
+            confirmAcapBtn.addEventListener('click', () => handleClockOutWithType('ACAP'));
+            confirmCoreBtn.addEventListener('click', () => handleClockOutWithType('CORE'));
+            clockOutCancelBtn.addEventListener('click', () => clockOutTypeModal.classList.remove('active'));
+
+            function renderCharts() {
+                if (weeklyChartInstance) weeklyChartInstance.destroy();
+                if (typeChartInstance) typeChartInstance.destroy();
+
+                const dateKeys = Object.keys(timeData).sort();
+                const hasData = dateKeys.length > 0;
+                statsNoDataMessage.classList.toggle('hidden', hasData);
+
+                if(!hasData) return;
+
+                // Weekly Hours Chart
+                const last12Weeks = [];
+                for (let i = 11; i >= 0; i--) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (i * 7));
+                    last12Weeks.push({
+                        label: `Week of ${d.getMonth()+1}/${d.getDate()}`,
+                        hours: getWeekHours(d)
+                    });
+                }
+                weeklyChartInstance = new Chart(weeklyHoursCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: last12Weeks.map(w => w.label),
+                        datasets: [{
+                            label: 'Weekly Hours',
+                            data: last12Weeks.map(w => w.hours.toFixed(2)),
+                            backgroundColor: 'rgba(134, 168, 231, 0.5)',
+                            borderColor: 'rgba(134, 168, 231, 1)',
+                            borderWidth: 1,
+                            borderRadius: 5
+                        }]
+                    }
+                });
+                
+                // Type Breakdown Chart
+                let coreHours = 0, acapHours = 0;
+                Object.values(timeData).forEach(day => {
+                    day.sessions.forEach(s => {
+                        if (s.in && s.out) {
+                            const i = new Date(`1970-01-01T${s.in}`);
+                            const o = new Date(`1970-01-01T${s.out}`);
+                            const hours = (o > i) ? (o - i) / 3600000 : 0;
+                            if (s.type === 'ACAP') acapHours += hours;
+                            else coreHours += hours;
+                        }
+                    });
+                });
+
+                typeChartInstance = new Chart(typeBreakdownCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['CORE', 'ACAP'],
+                        datasets: [{
+                            data: [coreHours, acapHours],
+                            backgroundColor: ['rgba(145, 234, 228, 0.7)', 'rgba(134, 168, 231, 0.7)'],
+                            borderColor: ['#91EAE4', '#86A8E7'],
+                            borderWidth: 2
+                        }]
+                    },
+                     options: { responsive: true, maintainAspectRatio: true }
+                });
+            }
+
+            // --- INITIALIZATION ---
+            function init() {
+                loadSettings(); loadData();
+                populateThemeSelector();
+                themeSelect.value = settings.theme; applyTheme(settings.theme);
+                backgroundSelect.value = settings.background; applyBackground(settings.background);
+                payPeriodSelect.value = settings.payPeriod;
+                selectedDate = getDateString(new Date());
+                updateAllUI();
+                checkAllAchievements(); // Check for time-based achievements on load
+            }
+
+            init();
         };
     </script>
 </body>
