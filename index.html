@@ -47,6 +47,13 @@
         #background-animation-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; overflow: hidden; }
         .animated-gradient { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
         @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        
+        /* --- Achievement System --- */
+        #achievement-toast { position: fixed; bottom: 1.25rem; left: 1.25rem; z-index: 110; opacity: 0; transform: translateY(2rem); transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); pointer-events: none; }
+        #achievement-toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .achievement-item { opacity: 0.5; filter: grayscale(80%); transition: all 0.3s ease; }
+        .achievement-item.unlocked { opacity: 1; filter: grayscale(0%); }
+
     </style>
 </head>
 <body class="antialiased">
@@ -125,7 +132,7 @@
                 <div id="sessions-display-area" class="space-y-3 mb-4">
                     </div>
                 <div id="additional-hours-display-area" class="space-y-2 mb-4">
-                   </div>
+                  </div>
             </div>
 
             <hr class="my-4 border-dashed">
@@ -165,6 +172,7 @@
                     <option value="gradient">Animated Gradient</option>
                 </select></div>
                 <div><label for="pay-period-select" class="block text-sm font-medium mb-1">Pay Period</label><select id="pay-period-select" class="input-field w-full"><option value="7">Weekly</option><option value="14" selected>Bi-Weekly</option><option value="15">Semi-Monthly</option><option value="30">Monthly</option></select></div>
+                <button id="view-achievements-btn" class="btn btn-secondary w-full py-2">View Achievements</button>
                 <button id="clear-data-btn" class="btn btn-danger w-full py-2">Clear All Data</button>
             </div>
         </div>
@@ -184,8 +192,8 @@
                     <canvas id="type-breakdown-chart"></canvas>
                 </div>
                  <div id="stats-no-data-message" class="text-center text-secondary py-8 hidden">
-                    <p>Log some more hours to see your stats here.</p>
-                </div>
+                     <p>Log some more hours to see your stats here.</p>
+                 </div>
             </div>
         </div>
     </div>
@@ -222,7 +230,28 @@
         </div>
     </div>
 
+    <div id="achievements-modal" class="modal-backdrop">
+        <div class="modal-content card w-full max-w-lg m-4 p-6 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Achievements</h3>
+                <button id="close-achievements-modal-btn" class="p-2 rounded-full hover:bg-black/10 transition-colors">&times;</button>
+            </div>
+            <div id="achievements-list" class="flex-grow overflow-y-auto pr-2 space-y-3">
+                </div>
+        </div>
+    </div>
+
     <div id="notification-toast" class="card py-3 px-5"> <p id="notification-message"></p> </div>
+
+    <div id="achievement-toast" class="card p-4 flex items-center gap-4 max-w-xs w-full">
+        <div id="achievement-icon" class="text-3xl">🏆</div>
+        <div>
+            <p id="achievement-title" class="font-bold text-primary"></p>
+            <p id="achievement-description" class="text-sm text-secondary"></p>
+        </div>
+    </div>
+    
+    <audio id="achievement-chime" src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTSEUAAAABAAAAmGFjdXN0aWNhX2lkX2FjdXN0aWNhX2Rvd19fVVNlcnNfX2pvcmRhbl9fRG93bmxvYWRzX19maW5hbF9wcm9qZWN0X3dlYnNpdGVfX3NvdW5kX19ub3RpZmljYXRpb25fYmVsbC5tcDMAAABoAAAAANIAAAAAATEwMCoAYeZNTEsAAAAAAAAAAADYAZCGzZ4AAAAAAAAAAAAAADYAZCGsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//vAxADgBwHABAAAFpveWFsdHktZnJlZS1zb3VuZC1jcmVhdG9yLWFjdXN0aWNhaWQuY29tLy9zYW1wbGVzLzM3NjgwOS1ub3RpZmljYXRpb24tYmVsbAANIAAAAAATEwMCoAYeZNTEsAAAAAAAAAAADYAZCGzZ4AAAAAAAAAAAAAADYAZCGsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//vAxAsAKTwjAAAAARAAAEZmaW5hbF9wcm9qZWN0X3dlYnNpdGVfX3NvdW5kX19ub3RpZmljYXRpb25fYmVsbC5tcDMAAAAZZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZm_//vAxA4BKYeLAAAEAAAEFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//vAxBYAIjYfAAAAARAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-D/s/+z/7//s/+z/7P/s//oP/oP+///s/+///+g/+g/8AAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-D/gA//gP/g/83+///s/+z/+v/9//2AAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-H/s//s/+z/oAAP/gAA/+/9gAD/wD/s/+z/3V/9n/3P/pVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//vAxC4BKYeLAAAAQAABFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//vAxBYAIjYfAAAAARAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVXlVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV-g'-'></audio>
 
     <script>
         window.onload = function() {
@@ -289,15 +318,28 @@
             const typeBreakdownCtx = document.getElementById('type-breakdown-chart').getContext('2d');
             const statsNoDataMessage = document.getElementById('stats-no-data-message');
 
+            // --- Achievement Elements ---
+            const achievementToast = document.getElementById('achievement-toast');
+            const achievementIcon = document.getElementById('achievement-icon');
+            const achievementTitle = document.getElementById('achievement-title');
+            const achievementDescription = document.getElementById('achievement-description');
+            const achievementChime = document.getElementById('achievement-chime');
+            const viewAchievementsBtn = document.getElementById('view-achievements-btn');
+            const achievementsModal = document.getElementById('achievements-modal');
+            const closeAchievementsModalBtn = document.getElementById('close-achievements-modal-btn');
+            const achievementsList = document.getElementById('achievements-list');
+
             // --- STATE MANAGEMENT ---
             let currentDate = new Date();
             let selectedDate = null;
             let editingSessionIndex = -1;
             let timeData = {};
             let settings = { theme: 'Sakura', background: 'none', payPeriod: 14 };
+            let achievementsData = {};
             let modalHourType = 'CORE';
             let onConfirmCallback = null;
             let notificationTimeout;
+            let achievementTimeout;
             let weeklyChartInstance = null;
             let typeChartInstance = null;
             
@@ -451,7 +493,7 @@
                 else if (editingSessionIndex >= 0) { timeData[selectedDate].sessions[editingSessionIndex] = { in: timeInInput.value, out: timeOutInput.value, type: modalHourType }; } 
                 else { timeData[selectedDate].sessions.push({ in: timeInInput.value, out: timeOutInput.value, type: modalHourType }); }
                 showNotification('Hours saved!');
-                saveData(); updateAllUI();
+                saveAllData(); updateAllUI();
                 setTimeout(closeTimeEntryModal, 400); 
             }
             
@@ -460,7 +502,7 @@
                    if(timeData[dateStr] && timeData[dateStr].sessions[index]) {
                        timeData[dateStr].sessions.splice(index, 1);
                        showNotification('Session deleted.');
-                       saveData(); updateAllUI();
+                       saveAllData(); updateAllUI();
                    }
                 });
             }
@@ -471,7 +513,7 @@
                 return dur + (e.additional || 0);
             }
 
-            function updateAllUI() { renderCalendar(); updateSummaries(); if(selectedDate) updateDisplayPanel(selectedDate); }
+            function updateAllUI() { renderCalendar(); updateSummaries(); if(selectedDate) updateDisplayPanel(selectedDate); checkAchievements(); }
 
             function updateSummaries() {
                 const todayStr = getDateString(new Date());
@@ -569,11 +611,115 @@
             
             function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
             function showConfirm(message, onConfirm) { confirmMessage.textContent = message; onConfirmCallback = onConfirm; confirmModal.classList.add('active'); }
-            function saveData() { localStorage.setItem('timeTrackerData', JSON.stringify(timeData)); }
-            function loadData() { const d = localStorage.getItem('timeTrackerData'); if (d) timeData = JSON.parse(d); }
+            function saveAllData() { localStorage.setItem('timeTrackerData', JSON.stringify(timeData)); localStorage.setItem('timeTrackerAchievements', JSON.stringify(achievementsData)); }
+            function loadAllData() { const d = localStorage.getItem('timeTrackerData'); if (d) timeData = JSON.parse(d); const a = localStorage.getItem('timeTrackerAchievements'); if(a) achievementsData = JSON.parse(a); }
             function saveSettings() { localStorage.setItem('timeTrackerSettings', JSON.stringify(settings)); }
             function loadSettings() { const s = localStorage.getItem('timeTrackerSettings'); if (s) settings = {...settings, ...JSON.parse(s)}; }
-            function clearAllData() { showConfirm('Delete all entries?', () => { timeData = {}; saveData(); updateAllUI(); showNotification('All data cleared.'); }); }
+            function clearAllData() { showConfirm('Delete all entries and achievements?', () => { timeData = {}; achievementsData = {}; saveAllData(); updateAllUI(); showNotification('All data cleared.'); }); }
+
+
+            // --- ACHIEVEMENT SYSTEM ---
+            const achievementDefinitions = {
+                firstClockIn:    { title: "First Sunrise", description: "You've clocked in for the first time.", icon: "🌅" },
+                firstClockOut:   { title: "First Sunset", description: "You've completed your first session.", icon: "🌇" },
+                weekly10:        { title: "Steady Start", description: "Reached 10 hours in a single week.", icon: "🌱" },
+                weekly20:        { title: "Halfway Hustler", description: "Reached 20 hours in a single week.", icon: "🏃‍♀️" },
+                weekly40:        { title: "Full Week Warrior", description: "Reached 40 hours in a single week.", icon: "🏆" },
+                firstPayPeriod:  { title: "Payday Pioneer", description: "Completed your first two-week period.", icon: "💌" },
+                firstMonth:      { title: "Monthly Milestone", description: "You've been tracking for a month!", icon: "🗓️" },
+                sixMonths:       { title: "Half-Year Hero", description: "Six months of dedication!", icon: "🌟" },
+                oneYear:         { title: "Anniversary Achiever", description: "A whole year! Incredible commitment.", icon: "🎉" },
+                quickSip:        { title: "A Quick Sip", description: "Logged a session less than an hour.", icon: "☕" },
+                dynamicDuo:      { title: "Dynamic Duo", description: "Logged both ACAP and CORE in one day.", icon: "🤝" }
+            };
+
+            function showAchievementNotification(id) {
+                clearTimeout(achievementTimeout);
+                const achievement = achievementDefinitions[id];
+                achievementIcon.textContent = achievement.icon;
+                achievementTitle.textContent = achievement.title;
+                achievementDescription.textContent = achievement.description;
+                
+                achievementChime.currentTime = 0;
+                achievementChime.play().catch(e => console.error("Audio play failed:", e));
+
+                achievementToast.classList.add('show');
+                achievementTimeout = setTimeout(() => achievementToast.classList.remove('show'), 5000);
+            }
+
+            function unlockAchievement(id) {
+                if (!achievementsData[id]) {
+                    achievementsData[id] = true;
+                    saveAllData();
+                    showAchievementNotification(id);
+                }
+            }
+            
+            function checkAchievements() {
+                const allDates = Object.keys(timeData).sort();
+                if (allDates.length === 0) return;
+
+                // Simple checks
+                if (Object.values(timeData).some(d => d.sessions.length > 0)) unlockAchievement('firstClockIn');
+                if (Object.values(timeData).some(d => d.sessions.some(s => s.in && s.out))) unlockAchievement('firstClockOut');
+                
+                // Pay period, Month, Year
+                if (allDates.length >= 14) unlockAchievement('firstPayPeriod');
+                const firstDay = new Date(allDates[0]);
+                const lastDay = new Date(allDates[allDates.length-1]);
+                const dayDiff = (lastDay - firstDay) / (1000 * 3600 * 24);
+                if (dayDiff >= 30) unlockAchievement('firstMonth');
+                if (dayDiff >= 182) unlockAchievement('sixMonths');
+                if (dayDiff >= 365) unlockAchievement('oneYear');
+                
+                // Complex checks that need looping
+                const weeklyHours = {}; // key: "year-weeknum", value: total_hours
+                const dailyTypes = {}; // key: "dateStr", value: Set['CORE', 'ACAP']
+
+                for (const dateStr of allDates) {
+                    const date = new Date(dateStr);
+                    const weekNum = Math.floor((date.getDate() - 1 + (new Date(date.getFullYear(), date.getMonth(), 1).getDay())) / 7);
+                    const weekKey = `${date.getFullYear()}-${date.getMonth()}-${weekNum}`;
+                    if (!weeklyHours[weekKey]) weeklyHours[weekKey] = 0;
+                    weeklyHours[weekKey] += calculateHours(dateStr);
+                    
+                    const types = new Set();
+                    if(timeData[dateStr].sessions) {
+                        timeData[dateStr].sessions.forEach(s => {
+                            if(s.type) types.add(s.type);
+                        });
+                    }
+                    if (types.has('ACAP') && types.has('CORE')) unlockAchievement('dynamicDuo');
+                }
+                
+                if (Object.values(weeklyHours).some(h => h >= 10)) unlockAchievement('weekly10');
+                if (Object.values(weeklyHours).some(h => h >= 20)) unlockAchievement('weekly20');
+                if (Object.values(weeklyHours).some(h => h >= 40)) unlockAchievement('weekly40');
+            }
+            
+            function renderAchievementsList() {
+                achievementsList.innerHTML = '';
+                for (const id in achievementDefinitions) {
+                    const achievement = achievementDefinitions[id];
+                    const isUnlocked = !!achievementsData[id];
+                    const item = document.createElement('div');
+                    item.className = `achievement-item p-4 rounded-lg flex items-center gap-4 border`;
+                    item.style.borderColor = 'var(--border-default)';
+                    if (isUnlocked) {
+                        item.classList.add('unlocked');
+                        item.style.backgroundColor = 'var(--bg-primary)';
+                    }
+                    item.innerHTML = `
+                        <div class="text-3xl">${achievement.icon}</div>
+                        <div>
+                            <p class="font-bold text-primary">${achievement.title}</p>
+                            <p class="text-sm text-secondary">${achievement.description}</p>
+                        </div>
+                    `;
+                    achievementsList.appendChild(item);
+                }
+            }
+
 
             // --- EVENT LISTENERS ---
             prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
@@ -620,7 +766,7 @@
                 const exactTime = getExactTime(now);
                 timeData[todayStr].sessions.push({ in: exactTime });
                 selectedDate = todayStr;
-                saveData(); updateAllUI();
+                saveAllData(); updateAllUI();
                 showNotification(`Clocked in: ${exactTime}`);
                 openSidePanel();
             });
@@ -637,10 +783,22 @@
                 const openSessionIdx = timeData[todayStr].sessions.findIndex(s => s.in && !s.out);
                 if (openSessionIdx > -1) {
                     const exactTime = getExactTime(now);
-                    timeData[todayStr].sessions[openSessionIdx].out = exactTime;
-                    timeData[todayStr].sessions[openSessionIdx].type = type;
+                    const openSession = timeData[todayStr].sessions[openSessionIdx];
+                    openSession.out = exactTime;
+                    openSession.type = type;
+
+                    // Specific check for "A Quick Sip"
+                    const inDate = new Date(`${todayStr}T${openSession.in}`);
+                    const outDate = new Date(`${todayStr}T${openSession.out}`);
+                    if (outDate > inDate) {
+                        const durationHours = (outDate - inDate) / 3600000;
+                        if (durationHours > 0 && durationHours < 1) {
+                            unlockAchievement('quickSip');
+                        }
+                    }
+
                     selectedDate = todayStr;
-                    saveData(); updateAllUI();
+                    saveAllData(); updateAllUI();
                     clockOutTypeModal.classList.remove('active');
                     showNotification(`Clocked out: ${exactTime}`);
                     openSidePanel();
@@ -650,6 +808,12 @@
             confirmAcapBtn.addEventListener('click', () => handleClockOutWithType('ACAP'));
             confirmCoreBtn.addEventListener('click', () => handleClockOutWithType('CORE'));
             clockOutCancelBtn.addEventListener('click', () => clockOutTypeModal.classList.remove('active'));
+
+            viewAchievementsBtn.addEventListener('click', () => {
+                renderAchievementsList();
+                achievementsModal.classList.add('active');
+            });
+            closeAchievementsModalBtn.addEventListener('click', () => achievementsModal.classList.remove('active'));
 
             function renderCharts() {
                 if (weeklyChartInstance) weeklyChartInstance.destroy();
@@ -663,7 +827,7 @@
 
             // --- INITIALIZATION ---
             function init() {
-                loadSettings(); loadData();
+                loadSettings(); loadAllData();
                 populateThemeSelector();
                 themeSelect.value = settings.theme; applyTheme(settings.theme);
                 backgroundSelect.value = settings.background; applyBackground(settings.background);
