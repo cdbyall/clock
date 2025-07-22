@@ -144,6 +144,36 @@
             to { opacity: 1; }
         }
 
+        /* --- Timecard Popup --- */
+        #timecard-popup {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translate(-50%, 150%); /* Start off-screen below */
+            z-index: 102; /* Above other elements */
+            width: 90%;
+            max-width: 350px;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            transition: transform 0.4s cubic-bezier(0.215, 0.610, 0.355, 1);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        #timecard-popup.show {
+            transform: translate(-50%, 0); /* Slide into view */
+        }
+        #timecard-status {
+            font-size: 1.5rem; /* 24px */
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        #timecard-time {
+            font-size: 1.25rem; /* 20px */
+            color: var(--accent-primary);
+            font-weight: 500;
+        }
+
     </style>
 </head>
 <body class="antialiased">
@@ -239,7 +269,7 @@
                 <div id="sessions-display-area" class="space-y-3 mb-4">
                 </div>
                 <div id="additional-hours-display-area" class="space-y-2 mb-4">
-                  </div>
+                    </div>
             </div>
 
             <hr class="my-4 border-dashed">
@@ -304,8 +334,8 @@
                     <canvas id="type-breakdown-chart"></canvas>
                 </div>
                  <div id="stats-no-data-message" class="text-center text-secondary py-8 hidden">
-                    <p>Log some more hours to see your stats here.</p>
-                </div>
+                     <p>Log some more hours to see your stats here.</p>
+                 </div>
             </div>
         </div>
     </div>
@@ -344,13 +374,17 @@
 
     <div id="notification-toast" class="card py-3 px-5"> <p id="notification-message"></p> </div>
 
-    <!-- Achievement Notification -->
     <div id="achievement-toast">
         <div id="achievement-icon">🏆</div>
         <div id="achievement-details">
             <h4 id="achievement-title"></h4>
             <p id="achievement-desc"></p>
         </div>
+    </div>
+    
+    <div id="timecard-popup" class="card">
+        <h2 id="timecard-status"></h2>
+        <p id="timecard-time"></p>
     </div>
     
     <script>
@@ -423,6 +457,9 @@
             const splashScreen = document.getElementById('splash-screen');
             const splashTitle = document.getElementById('splash-title');
             const splashStartBtn = document.getElementById('splash-start-btn');
+            const timecardPopup = document.getElementById('timecard-popup');
+            const timecardStatus = document.getElementById('timecard-status');
+            const timecardTime = document.getElementById('timecard-time');
 
             // --- STATE MANAGEMENT ---
             let currentDate = new Date();
@@ -825,6 +862,15 @@
             function showNotification(message) { clearTimeout(notificationTimeout); notificationMessage.textContent = message; notificationToast.classList.add('show'); notificationTimeout = setTimeout(() => notificationToast.classList.remove('show'), 3000); }
             function showConfirm(message, onConfirm) { confirmMessage.textContent = message; onConfirmCallback = onConfirm; confirmModal.classList.add('active'); }
             
+            function showTimecard(status, time) {
+                timecardStatus.textContent = status;
+                timecardTime.textContent = time;
+                timecardPopup.classList.add('show');
+                setTimeout(() => {
+                    timecardPopup.classList.remove('show');
+                }, 2500); // Display for 2.5 seconds
+            }
+
             // --- ACHIEVEMENT SYSTEM ---
             const achievements = {
                 firstClockIn: { title: "Early Bird", desc: "You clocked in for the first time!", check: () => Object.keys(timeData).length > 0 },
@@ -993,10 +1039,9 @@
                 timeData[todayStr].sessions.push({ in: exactTime });
                 selectedDate = todayStr;
                 saveData(); updateAllUI();
-                showNotification(`Clocked in: ${formatTo12Hour(exactTime)}`);
+                showTimecard('Clocked In', formatTo12Hour(exactTime));
                 playClockInSound();
                 checkAllAchievements();
-                openSidePanel();
             });
 
             clockOutBtn.addEventListener('click', () => {
@@ -1022,10 +1067,9 @@
                     
                     saveData(); updateAllUI();
                     clockOutTypeModal.classList.remove('active');
-                    showNotification(`Clocked out: ${formatTo12Hour(exactTime)}`);
+                    showTimecard('Clocked Out', formatTo12Hour(exactTime));
                     playClockOutSound();
                     checkAllAchievements({ lastSessionHours: lastSessionHours, date: todayStr });
-                    openSidePanel();
                 }
             }
 
