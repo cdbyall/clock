@@ -199,8 +199,10 @@
 
     <div id="background-animation-container"></div>
 
-    <div class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <div class="min-h-screen p-4 pt-12 sm:p-6 sm:pt-16 lg:p-8">
         <div class="max-w-5xl mx-auto">
+            
+            <div id="digital-clock" class="text-center mb-8 text-5xl font-bold text-[var(--text-primary)]" style="text-shadow: 1px 1px 3px var(--shadow-color);"></div>
 
             <div class="flex justify-center items-center gap-4 sm:gap-8 mb-8">
                 <button id="clock-in-btn" class="btn btn-primary flex-1 max-w-xs py-4 px-6 text-xl font-bold shadow-lg flex items-center justify-center gap-3">
@@ -457,6 +459,7 @@
             const timecardPopup = document.getElementById('timecard-popup');
             const timecardStatus = document.getElementById('timecard-status');
             const timecardTime = document.getElementById('timecard-time');
+            const digitalClock = document.getElementById('digital-clock');
 
             // --- STATE MANAGEMENT ---
             let currentDate = new Date();
@@ -534,6 +537,13 @@
 
 
             // --- HELPER FUNCTIONS ---
+            function updateDigitalClock() {
+                digitalClock.textContent = new Date().toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit'
+                });
+            }
+
             function getDateString(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
             function getExactTime(date) { return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; }
             
@@ -1184,6 +1194,10 @@
                 initAudio();
                 loadSettings(); 
                 loadData();
+                
+                updateDigitalClock();
+                setInterval(updateDigitalClock, 1000);
+
                 populateThemeSelector();
                 themeSelect.value = settings.theme; 
                 applyTheme(settings.theme);
